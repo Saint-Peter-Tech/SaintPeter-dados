@@ -66,13 +66,19 @@ def timeFrame10s():
 
             PicoRecvSpd.append(vRecv)
 
-            if temp != "SysUnsurp":
+            try:
 
-                if(len(PicoTemp) == 60):
+                if float(temp)%1 == 0:
 
-                    PicoTemp.pop(0)
+                    if(len(PicoTemp) == 60):
 
-                PicoTemp.append(temp)
+                        PicoTemp.pop(0)
+
+                    PicoTemp.append(temp)
+
+            except ValueError:
+
+                print("O sistema operacional não suporta leitura de temperatura")
 
             PicoRecvSpd.append(vRecv)
 

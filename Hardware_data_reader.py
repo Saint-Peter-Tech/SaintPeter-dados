@@ -5,7 +5,7 @@ import psutil
 import time
 from itertools import islice
 
-arquivoCSV = 'Hardware_data/Hardware_data.csv'
+arquivoCSV = 'Hardware_data.csv'
 formatoData = "%Y-%m-%d %H:%M:%S"
 linhas = 0
 ramTotal = round(8367104000/1024**3,2)
@@ -110,7 +110,7 @@ def timeFrame10s():
 
                 data = ["usuario","dtIni","dfFin","PicoCPU","PicoRam","PicoMem","MediaCPU","MediaRam","MediaMem","PicoVelEnvio","MedVelEnvio","PicoVelReceb","MediaVelReceb","PicoTemp","MediaTemp"]
 
-                CSV = 'Hardware_data/Treated_ardware_data.csv'
+                CSV = 'Treated_Hardware_data.csv'
 
                 if os.path.exists(CSV) == False:
 

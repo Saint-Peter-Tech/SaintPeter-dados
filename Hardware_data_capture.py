@@ -1,0 +1,58 @@
+import psutil
+import time
+import csv
+from datetime import datetime
+import os
+
+data = ["USER","DATETIME","CPU","RAM","MEM","TEMP","BYSEND1","BYSEND2","BYRECV1","BYRECV2"]
+
+arquivoCSV = 'Hardware_data/Hardware_data.csv'
+
+if os.path.exists(arquivoCSV) == False:
+
+    with open(arquivoCSV, mode = "w", newline='') as arq:
+
+            escritor = csv.writer(arq)
+            escritor.writerow(data)
+
+while True:
+
+    mem = (psutil.disk_usage('/'))
+    ram = psutil.virtual_memory()
+    cpu = psutil.cpu_percent(interval=1, percpu=False)
+    date = datetime.now()
+    usuario = os.getlogin()
+    curTemp = "SysUnsurp"
+    netSpd = psutil.net_io_counters()
+
+    try:
+         
+        temp = psutil.sensors_temperatures()
+        curTemp = ["coretemp"][0][1]
+
+        print(temp)
+
+    except AttributeError:
+
+        print("Captura de temperatura não é superdada pelo seu sistema operacional")         
+
+    bytsSendSpd1 = netSpd.bytes_sent
+    bytsRecvSpd1 = netSpd.bytes_recv
+    
+    time.sleep(5)
+
+    netSpd = psutil.net_io_counters()
+
+    bytesSendSpd2 = netSpd.bytes_sent
+    bytesRecvSpd2 = netSpd.bytes_recv
+
+
+
+    data = [usuario,date.strftime("%Y-%m-%d %H:%M:%S"),cpu,round(ram.used/(1024**3),2),mem.percent,curTemp,bytsSendSpd1,bytesSendSpd2,bytsRecvSpd1,bytesRecvSpd2]
+
+    with open(arquivoCSV, mode = "a", newline='') as arq:
+
+        escritor = csv.writer(arq)
+        escritor.writerow(data)
+
+    time.sleep(4)

@@ -48,8 +48,8 @@ def timeFrame10s():
             Mem = float(resultado[4])
             Cpu = float(resultado[2])
             Date =  datetime.strptime(resultado[1],formatoData)
-            vSend = float(round(((float(resultado[7])-float(resultado[6])/5))/1000000,2))
-            vRecv = float(round(((float(resultado[9])-float(resultado[8])/5))/1000000,2))
+            vSend = round(((float(resultado[7])-float(resultado[6]))/5)* 8/1000000,2)
+            vRecv = round(((float(resultado[9])-float(resultado[8]))/5)* 8/1000000,2)
             temp = resultado[5]
 
             print("Ram: ",round((Ram/ramTotal)*100,2),"%","\n","Memória: ",Mem,"%","\n","CPU: ",Cpu,"%","\n","Data: ",Date,"\n")
@@ -151,6 +151,8 @@ def timeFrame10s():
                     escritor.writerow(data)
 
                 count = 0
+            
+            time.sleep(10)
 
     else:
     

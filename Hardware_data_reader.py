@@ -8,7 +8,7 @@ from itertools import islice
 arquivoCSV = 'Hardware_data.csv'
 formatoData = "%Y-%m-%d %H:%M:%S"
 linhas = 0
-ramTotal = round(8367104000/1024**3,2)
+ramTotal = round(8367104000/1024**3,2) # Pegar a ram total com psutil 
 picoRam10min = []
 picoMem10min = []
 picoCPU10min = []
@@ -48,19 +48,19 @@ def timeFrame10s():
             Mem = float(resultado[4])
             Cpu = float(resultado[2])
             Date =  datetime.strptime(resultado[1],formatoData)
-            vSend = round(((float(resultado[7])-float(resultado[6]))/5)* 8/1000000,2)
-            vRecv = round(((float(resultado[9])-float(resultado[8]))/5)* 8/1000000,2)
+            vSend = round(((float(resultado[7])-float(resultado[6]))/5)*8/1000000,2)
+            vRecv = round(((float(resultado[9])-float(resultado[8]))/5)*8/1000000,2)
             temp = resultado[5]
 
             print("Ram: ",round((Ram/ramTotal)*100,2),"%","\n","Memória: ",Mem,"%","\n","CPU: ",Cpu,"%","\n","Data: ",Date,"\n")
 
-            if(len(PicoSendSpd) == 60):
+            if(len(PicoSendSpd) == 6):
 
                 PicoSendSpd.pop(0)
 
             PicoSendSpd.append(vSend)
 
-            if(len(PicoRecvSpd) == 60):
+            if(len(PicoRecvSpd) == 6):
 
                 PicoRecvSpd.pop(0)
 
@@ -70,7 +70,7 @@ def timeFrame10s():
 
                 if float(temp)%1 == 0:
 
-                    if(len(PicoTemp) == 60):
+                    if(len(PicoTemp) == 6):
 
                         PicoTemp.pop(0)
 
@@ -82,7 +82,7 @@ def timeFrame10s():
 
             PicoRecvSpd.append(vRecv)
 
-            if len(dtTimes) == 60:
+            if len(dtTimes) == 6:
 
                 dtTimes.pop(0)
             
@@ -90,19 +90,19 @@ def timeFrame10s():
 
             count = count + 1            
 
-            if len(picoRam10min) == 60:
+            if len(picoRam10min) == 6:
 
                 picoRam10min.pop(0)
             
             picoRam10min.append(Ram)
 
-            if len(picoCPU10min) == 60:
+            if len(picoCPU10min) == 6:
 
                  picoCPU10min.pop(0)
             
             picoCPU10min.append(Cpu)
 
-            if len(picoMem10min) == 60:
+            if len(picoMem10min) == 6:
 
                 picoMem10min.pop(0)
             
@@ -112,7 +112,7 @@ def timeFrame10s():
                          "Pico do uso de CPU nos últimos 10 minutos: ",max(picoCPU10min),"%\n",
                          "Pico do uso de memória nos últimos 10 minutos: ",max(picoMem10min),"%\n")
 
-            if count == 60:
+            if count == 6:
 
                 data = ["usuario","dtIni","dfFin","PicoCPU","PicoRam","PicoMem","MediaCPU","MediaRam","MediaMem","PicoVelEnvio","MedVelEnvio","PicoVelReceb","MediaVelReceb","PicoTemp","MediaTemp"]
 

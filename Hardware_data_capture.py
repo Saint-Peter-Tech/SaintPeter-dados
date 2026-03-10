@@ -28,7 +28,7 @@ while True:
     try:
          
         temp = psutil.sensors_temperatures()
-        curTemp = ["coretemp"][0][1]
+        curTemp = temp["coretemp"][0][1]
 
         print(temp)
 

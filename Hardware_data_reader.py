@@ -9,9 +9,9 @@ arquivoCSV = 'Hardware_data.csv'
 formatoData = "%Y-%m-%d %H:%M:%S"
 linhas = 0
 ramTotal = round(float(psutil.virtual_memory().total)/1024**3,2)
-picoRam10min = []
-picoMem10min = []
-picoCPU10min = []
+picoRam1min = []
+picoMem1min = []
+picoCPU1min = []
 PicoSendSpd = []
 PicoRecvSpd = []
 dtTimes = []
@@ -74,27 +74,27 @@ def timeFrame10s():
 
             count = count + 1            
 
-            if len(picoRam10min) == 6:
+            if len(picoRam1min) == 6:
 
-                picoRam10min.pop(0)
+                picoRam1min.pop(0)
             
-            picoRam10min.append(Ram)
+            picoRam1min.append(Ram)
 
-            if len(picoCPU10min) == 6:
+            if len(picoCPU1min) == 6:
 
-                 picoCPU10min.pop(0)
+                 picoCPU1min.pop(0)
             
-            picoCPU10min.append(Cpu)
+            picoCPU1min.append(Cpu)
 
-            if len(picoMem10min) == 6:
+            if len(picoMem1min) == 6:
 
-                picoMem10min.pop(0)
+                picoMem1min.pop(0)
             
-            picoMem10min.append(Mem)
+            picoMem1min.append(Mem)
 
-            print("Pico do uso de Ram no últimos 10 minutos: ",round((max(picoRam10min)/ramTotal)*100,2),"%\n",
-                         "Pico do uso de CPU nos últimos 10 minutos: ",max(picoCPU10min),"%\n",
-                         "Pico do uso de memória nos últimos 10 minutos: ",max(picoMem10min),"%\n")
+            print("Pico do uso de Ram no últimos 1 minuto: ",round((max(picoRam1min)/ramTotal)*100,2),"%\n",
+                         "Pico do uso de CPU nos últimos 1 minuto: ",max(picoCPU1min),"%\n",
+                         "Pico do uso de memória nos últimos 1 minuto: ",max(picoMem1min),"%\n")
 
             if count == 6:
 
@@ -110,12 +110,12 @@ def timeFrame10s():
                             escritor.writerow(data)
 
 
-                Pmem = f"{(max(picoMem10min))}%"
-                Pram = f"{round((max(picoRam10min)/ramTotal)*100,2)}%"
-                Pcpu = f"{max(picoCPU10min)}%"
-                Mmem = f"{round(sum(picoMem10min)/len(picoMem10min),2)}%"
-                Mram = f"{round(((sum(picoRam10min)/(ramTotal*len(picoRam10min)))/len(picoRam10min))*100,2)}%"
-                Mcpu = f"{round(sum(picoCPU10min)/len(picoCPU10min),2)}%"
+                Pmem = f"{(max(picoMem1min))}%"
+                Pram = f"{round((max(picoRam1min)/ramTotal)*100,2)}%"
+                Pcpu = f"{max(picoCPU1min)}%"
+                Mmem = f"{round(sum(picoMem1min)/len(picoMem1min),2)}%"
+                Mram = f"{round(((sum(picoRam1min)/(ramTotal*len(picoRam1min)))/len(picoRam1min))*100,2)}%"
+                Mcpu = f"{round(sum(picoCPU1min)/len(picoCPU1min),2)}%"
                 PVSend = f"{round(max(PicoSendSpd),2)}Mbps"
                 PVRecv = f"{round(max(PicoRecvSpd),2)}Mbps"
                 MVSend = f"{round(sum(PicoSendSpd)/len(PicoSendSpd),2)}Mbps"

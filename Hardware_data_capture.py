@@ -22,19 +22,7 @@ while True:
     cpu = psutil.cpu_percent(interval=1, percpu=False)
     date = datetime.now()
     usuario = os.getlogin()
-    curTemp = "SysUnsurp"
     netSpd = psutil.net_io_counters()
-
-    try:
-         
-        temp = psutil.sensors_temperatures()
-        curTemp = temp["coretemp"][0][1]
-
-        print(temp)
-
-    except AttributeError:
-
-        print("Captura de temperatura não é superdada pelo seu sistema operacional")         
 
     bytsSendSpd1 = netSpd.bytes_sent
     bytsRecvSpd1 = netSpd.bytes_recv
@@ -48,7 +36,7 @@ while True:
 
 
 
-    data = [usuario,date.strftime("%Y-%m-%d %H:%M:%S"),cpu,round(ram.used/(1024**3),2),mem.percent,curTemp,bytsSendSpd1,bytesSendSpd2,bytsRecvSpd1,bytesRecvSpd2]
+    data = [usuario,date.strftime("%Y-%m-%d %H:%M:%S"),cpu,round(ram.used/(1024**3),2),mem.percent,bytsSendSpd1,bytesSendSpd2,bytsRecvSpd1,bytesRecvSpd2]
 
     with open(arquivoCSV, mode = "a", newline='') as arq:
 

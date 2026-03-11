@@ -8,13 +8,12 @@ from itertools import islice
 arquivoCSV = 'Hardware_data.csv'
 formatoData = "%Y-%m-%d %H:%M:%S"
 linhas = 0
-ramTotal = round(8367104000/1024**3,2) # Pegar a ram total com psutil 
+ramTotal = round(float(psutil.virtual_memory().total)/1024**3,2)
 picoRam10min = []
 picoMem10min = []
 picoCPU10min = []
 PicoSendSpd = []
 PicoRecvSpd = []
-PicoTemp = []
 dtTimes = []
 count = 0
 user = ''
@@ -50,7 +49,6 @@ def timeFrame10s():
             Date =  datetime.strptime(resultado[1],formatoData)
             vSend = round(((float(resultado[7])-float(resultado[6]))/5)*8/1000000,2)
             vRecv = round(((float(resultado[9])-float(resultado[8]))/5)*8/1000000,2)
-            temp = resultado[5]
 
             print("Ram: ",round((Ram/ramTotal)*100,2),"%","\n","Memória: ",Mem,"%","\n","CPU: ",Cpu,"%","\n","Data: ",Date,"\n")
 
@@ -63,22 +61,6 @@ def timeFrame10s():
             if(len(PicoRecvSpd) == 6):
 
                 PicoRecvSpd.pop(0)
-
-            PicoRecvSpd.append(vRecv)
-
-            try:
-
-                if float(temp)%1 == 0:
-
-                    if(len(PicoTemp) == 6):
-
-                        PicoTemp.pop(0)
-
-                    PicoTemp.append(temp)
-
-            except ValueError:
-
-                print("O sistema operacional não suporta leitura de temperatura")
 
             PicoRecvSpd.append(vRecv)
 
@@ -114,7 +96,7 @@ def timeFrame10s():
 
             if count == 6:
 
-                data = ["usuario","dtIni","dfFin","PicoCPU","PicoRam","PicoMem","MediaCPU","MediaRam","MediaMem","PicoVelEnvio","MedVelEnvio","PicoVelReceb","MediaVelReceb","PicoTemp","MediaTemp"]
+                data = ["usuario","dtIni","dfFin","PicoCPU","PicoRam","PicoMem","MediaCPU","MediaRam","MediaMem","PicoVelEnvio","MedVelEnvio","PicoVelReceb","MediaVelReceb"]
 
                 CSV = 'Treated_Hardware_data.csv'
 
@@ -129,7 +111,7 @@ def timeFrame10s():
                 Pmem = f"{(max(picoMem10min))}%"
                 Pram = f"{round((max(picoRam10min)/ramTotal)*100,2)}%"
                 Pcpu = f"{max(picoCPU10min)}%"
-                Mmem = f"{sum(picoMem10min)/len(picoMem10min)}%"
+                Mmem = f"{round(sum(picoMem10min)/len(picoMem10min),2)}%"
                 Mram = f"{round(((sum(picoRam10min)/(ramTotal*len(picoRam10min)))/len(picoRam10min))*100,2)}%"
                 Mcpu = f"{round(sum(picoCPU10min)/len(picoCPU10min),2)}%"
                 PVSend = f"{round(max(PicoSendSpd),2)}Mbps"
@@ -139,17 +121,7 @@ def timeFrame10s():
                 dtIni = dtTimes[0]
                 dtFin = dtTimes[len(dtTimes)-1]
 
-                if len(PicoTemp) == 0:
-
-                    PTemp = "SysUnsurpC"
-                    MTemp = "SysUnsurpC"
-
-                else:
-
-                    PTemp = f"{max(PicoTemp)}C"
-                    MTemp = f"{sum(PicoTemp)/len(PicoTemp)}C"
-
-                data = [user,dtIni,dtFin,Pcpu,Pram,Pmem,Mcpu,Mram,Mmem,PVSend,MVSend,PVRecv,MVRecv,PTemp,MTemp]
+                data = [user,dtIni,dtFin,Pcpu,Pram,Pmem,Mcpu,Mram,Mmem,PVSend,MVSend,PVRecv,MVRecv]
 
                 with open(CSV, mode = "a", newline='') as arq:
 

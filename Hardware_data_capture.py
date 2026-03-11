@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 import os
 
-data = ["USER","DATETIME","CPU","RAM","MEM","TEMP","BYSEND1","BYSEND2","BYRECV1","BYRECV2"]
+data = ["USER","DATETIME","CPU","RAM","MEM","BYSEND1","BYSEND2","BYRECV1","BYRECV2"]
 
 arquivoCSV = 'Hardware_data.csv'
 

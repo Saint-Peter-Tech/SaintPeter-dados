@@ -42,13 +42,15 @@ def timeFrame10s():
 
             resultado = Leitura()
 
+
+
             user = resultado[0]
             Ram = float(resultado[3])
             Mem = float(resultado[4])
             Cpu = float(resultado[2])
             Date =  datetime.strptime(resultado[1],formatoData)
-            vSend = round(((float(resultado[7])-float(resultado[6]))/5)*8/1000000,2)
-            vRecv = round(((float(resultado[9])-float(resultado[8]))/5)*8/1000000,2)
+            vSend = round(((float(resultado[6])-float(resultado[5]))/5)*8/1000000,2)
+            vRecv = round(((float(resultado[8])-float(resultado[7]))/5)*8/1000000,2)
 
             print("Ram: ",round((Ram/ramTotal)*100,2),"%","\n","Memória: ",Mem,"%","\n","CPU: ",Cpu,"%","\n","Data: ",Date,"\n")
 

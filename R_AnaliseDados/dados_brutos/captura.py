@@ -33,15 +33,8 @@ header = [
 # "bytes_sent_per_sec" = Velocidade média de envio (upload) em bytes por segundo;
 # "bytes_recv_per_sec" = Velocidade média de recebimento (download) em bytes por segundo.
 
-pasta = './dados_brutos'
-
-# Criando o caminho da pasta para salvar o CSV.
-
-os.makedirs(pasta, exist_ok=True)
-
-# Cria a pasta caso não exista (evita erro ao salvar arquivo).
-
-arquivoCSV = f"{pasta}/dados_brutos.csv"
+pasta_script = os.path.dirname(os.path.abspath(__file__))
+arquivoCSV = os.path.join(pasta_script, "dados_brutos.csv")
 
 # Define o caminho completo do arquivo CSV dentro da pasta criada.
 
@@ -104,6 +97,7 @@ while True:
 
     # Salva os dados no CSV no modo append (sem sobrescrever o arquivo);
     df.to_csv(arquivoCSV, mode='a', header=False, index=False, encoding='utf-8')
+    print("teste")
 
     time.sleep(5)
     # Aguarda mais 5 segundos antes da próxima coleta (controle de frequência).

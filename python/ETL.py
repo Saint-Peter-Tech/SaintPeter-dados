@@ -31,13 +31,13 @@ header = [
     "cpu_peak",
     "ram_peak_percent",
     "disk_peak_percent",
-    "cpu_avg",
-    "ram_avg_percent",
-    "disk_avg_percent",
+    "cpu_min",
+    "ram_min_percent",
+    "disk_min_percent",
     "net_sent_peak_mbps",
-    "net_sent_avg_mbps",
+    "net_sent_min_mbps",
     "net_recv_peak_mbps",
-    "net_recv_avg_mbps"
+    "net_recv_min_mbps"
 ]
 
 if not os.path.exists(arquivo_saida):
@@ -76,19 +76,19 @@ while True:
 
     # Cálculo de métricas:
     cpu_peak = df_last["cpu_percent"].max()
-    cpu_avg = df_last["cpu_percent"].mean()
+    cpu_min = df_last["cpu_percent"].min()
 
     ram_peak = df_last["ram_percent"].max()
-    ram_avg = df_last["ram_percent"].mean()
+    ram_min = df_last["ram_percent"].min()
 
     disk_peak = df_last["disk_usage_percent"].max()
-    disk_avg = df_last["disk_usage_percent"].mean()
+    disk_min = df_last["disk_usage_percent"].min()
 
     net_send_peak = df_last["net_send_mbps"].max()
-    net_send_avg = df_last["net_send_mbps"].mean()
+    net_send_min = df_last["net_send_mbps"].min()
 
     net_recv_peak = df_last["net_recv_mbps"].max()
-    net_recv_avg = df_last["net_recv_mbps"].mean()
+    net_recv_min = df_last["net_recv_mbps"].min()
 
     # Intervalo de tempo:
     timestamp_start = df_last["timestamp"].iloc[0] # Primeiro Registro do ultimo minuto;
@@ -104,13 +104,13 @@ while True:
         round(cpu_peak, 2),
         round(ram_peak, 2),
         round(disk_peak, 2),
-        round(cpu_avg, 2),
-        round(ram_avg, 2),
-        round(disk_avg, 2),
+        round(cpu_min, 2),
+        round(ram_min, 2),
+        round(disk_min, 2),
         round(net_send_peak, 2),
-        round(net_send_avg, 2),
+        round(net_send_min, 2),
         round(net_recv_peak, 2),
-        round(net_recv_avg, 2)
+        round(net_recv_min, 2)
     ]], columns=header)
 
     # Salva no CSV tratado.

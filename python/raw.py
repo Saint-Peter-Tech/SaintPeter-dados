@@ -7,6 +7,7 @@ import boto3
 import subprocess
 import random
 from random import randint
+import sys
 
 # Importando Bibliotecas Necessárias:
 # psutil = Captura de Hardware e processos;
@@ -18,6 +19,7 @@ from random import randint
 # subprocess = Gerar processos fantasmas para simular modulos;
 # random =  Utilizado da mesma forma que um rnorm para criar padrões.
 # randomint = Gera um random entre intervalos
+# sys = Sendo usado para pegar o Python que está sendo executado no PC, evitando assim conflitos
 
 
 header = [
@@ -87,7 +89,7 @@ os.makedirs(pasta, exist_ok=True)
 arquivoCSV = f"{pasta}/dados_brutos.csv"
 pasta_processos = "./processos_fantasmas"
 
-# Cria a pasta para os Processos Fantasmas (modulos)
+# Cria a pasta para os Processos Fantasmas (modulos) caso ela não exista.
 os.makedirs(pasta_processos, exist_ok=True)
 
 
@@ -99,6 +101,9 @@ if not os.path.exists(arquivoCSV):
 
 # Cria o arquivo CSV com apenas o cabeçalho caso ele ainda não exista.
 
+# Criando apra guardar processos fantasmas e ter um controle melhor deles.
+processos_ativos = {}
+
 def simular_processos_fantasmas():
     # Função responsável por criar processos simulados (módulos)
     # com base em probabilidades dependentes de horário e dia da semana
@@ -107,6 +112,7 @@ def simular_processos_fantasmas():
     hora = agora.hour
     dia_semana = agora.weekday()
 
+    # Dicionarios de probabilidades base, que serão manipuladas baseado no dia e semana:
     probabilidades = {
         "ecg": 0.3,
         "spo2": 0.3,
@@ -187,12 +193,54 @@ def simular_processos_fantasmas():
             "pvc": 0.3
         })
 
+# Toda criação de probabilidade de X ou Y modulo estar ativo
+# feito com base em pesquisas de funciomamento hospitalar.
+    
+    for m in list(processos_ativos):
+            if processos_ativos[m].poll() is not None:
+                del processos_ativos[m]
+
+# For para percorrer dicionario de processos_ativos e apagar processos
+# que estão como "ativos" mas já foram terminados
+
+# Criando um for dentro de um for para percorrer os modulos e pegar o nome deles e atribuir sua probabilidade
+# criada anteriromente em seus dicionarios além disso ele checa se o processo já está ativo atribuindo mais chance
+# de ele continuar ativo e tem um else para matar os processos fantasmas porem se if
+# (random.random < prob) ele cria o processo fantasma.
+
     for modulo, arquivos in modulos.items():
-        prob = probabilidades.get(modulo)
+        prob = probabilidades.get(modulo, 0)
+
+        ativo = modulo in processos_ativos
+
+        if ativo:
+            prob = min(prob * 1.2, 1)
 
         if random.random() < prob:
-            for script in arquivos:
-                    subprocess.Popen(["python", script])
+            if not ativo:
+                for script in arquivos:
+                        caminho = os.path.join(pasta_processos, script)
+
+                        if not os.path.exists(caminho):
+                            with open(caminho, "w") as f:
+                                f.write("import time\nwhile True:\n    time.sleep(1)")
+
+                        proc = subprocess.Popen(
+                            [sys.executable, caminho],
+                            )
+                        processos_ativos[modulo] = proc
+        else:
+            if ativo:
+                proc = processos_ativos[modulo]
+                try:
+                    proc.terminate()
+                    time.sleep(0.5)
+                    if proc.poll() is None:
+                        proc.kill()
+                except Exception as e:
+                    print(f"Erro ao matar processo: {e}")
+
+                del processos_ativos[modulo]
 
 def verificar_modulos():
     # Função responsável por verificar se os módulos estão ativos no sistema
@@ -228,80 +276,92 @@ def verificar_modulos():
 
     return status_modulos
 
-while True:
+try:
+    while True:
 
-    # Cria os Processos Fantasmas
-    simular_processos_fantasmas()
+        # Cria os Processos Fantasmas
+        simular_processos_fantasmas()
 
-    # Pega o inicio do While
-    inicio = time.time()
+        # Pega o inicio do While
+        inicio = time.time()
 
-    # Gera um intervalo aleatorio para troca de módulos
-    interval = randint(1800, 28800)
+        # Gera um intervalo aleatorio para troca de módulos
+        interval = randint(1800, 28800)
 
-    while time.time() - inicio - interval:
+        while time.time() - inicio < interval:
 
-        # Início do loop infinito para captura contínua dos dados do sistema:
+            # Início do loop infinito para captura contínua dos dados do sistema:
 
-        mem = psutil.disk_usage('/')
-        # Captura informações de uso do disco (total, usado, livre e porcentagem);
+            mem = psutil.disk_usage('/')
+            # Captura informações de uso do disco (total, usado, livre e porcentagem);
 
-        ram = psutil.virtual_memory()
-        # Captura informações da memória RAM (total, disponível, usado, etc);
+            ram = psutil.virtual_memory()
+            # Captura informações da memória RAM (total, disponível, usado, etc);
 
-        cpu = psutil.cpu_percent(interval=1)
-        # Captura o uso percentual da CPU (intervalo de 1 segundo para média mais precisa);
+            cpu = psutil.cpu_percent(interval=1)
+            # Captura o uso percentual da CPU (intervalo de 1 segundo para média mais precisa);
 
-        date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Captura o timestamp atual da coleta formatado;
+            date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Captura o timestamp atual da coleta formatado;
 
-        id_monitor = 1
-        # Simulando ser o Monitor X, SEMPRE MUDAR!!!;
+            id_monitor = 1
+            # Simulando ser o Monitor X, SEMPRE MUDAR!!!;
 
-        net = psutil.net_io_counters()
-        # Captura os bytes totais enviados e recebidos até o momento;
+            net = psutil.net_io_counters()
+            # Captura os bytes totais enviados e recebidos até o momento;
 
-        bytesSend1 = net.bytes_sent
-        bytesRecv1 = net.bytes_recv
-        # Armazena o primeiro ponto de medição da rede;
+            bytesSend1 = net.bytes_sent
+            bytesRecv1 = net.bytes_recv
+            # Armazena o primeiro ponto de medição da rede;
 
-        time.sleep(5)
-        # Aguarda 5 segundos para calcular a variação de tráfego de rede;
+            time.sleep(5)
+            # Aguarda 5 segundos para calcular a variação de tráfego de rede;
 
-        net = psutil.net_io_counters()
+            net = psutil.net_io_counters()
 
-        bytesSend2 = net.bytes_sent
-        bytesRecv2 = net.bytes_recv
-        # Segundo ponto de medição da rede;
+            bytesSend2 = net.bytes_sent
+            bytesRecv2 = net.bytes_recv
+            # Segundo ponto de medição da rede;
 
-        # Calcula a taxa média de envio e recebimento por segundo;
-        bytes_sent_per_sec = (bytesSend2 - bytesSend1) / 5
-        bytes_recv_per_sec = (bytesRecv2 - bytesRecv1) / 5
+            # Calcula a taxa média de envio e recebimento por segundo;
+            bytes_sent_per_sec = (bytesSend2 - bytesSend1) / 5
+            bytes_recv_per_sec = (bytesRecv2 - bytesRecv1) / 5
 
-        # Captura o status dos módulos simulados
-        modulos_status = verificar_modulos()
+            # Captura o status dos módulos simulados
+            modulos_status = verificar_modulos()
 
-        # Cria uma lista com os dados coletados
-        linha = [
-            id_monitor,
-            date,
-            cpu,
-            ram.percent,
-            round(ram.used / (1024**3), 2),
-            mem.percent,
-            bytes_sent_per_sec,
-            bytes_recv_per_sec,
-        ]
+            # Cria uma lista com os dados coletados
+            linha = [
+                id_monitor,
+                date,
+                cpu,
+                ram.percent,
+                round(ram.used / (1024**3), 2),
+                mem.percent,
+                bytes_sent_per_sec,
+                bytes_recv_per_sec,
+            ]
 
-        # Adiciona o status dos módulos na linha
-        for modulo in modulos:
-            linha.append(modulos_status[modulo])
+            # Adiciona o status dos módulos na linha
+            for modulo in modulos:
+                linha.append(modulos_status[modulo])
 
-        # Cria um DataFrame com uma única linha contendo os dados coletados.
-        df = pd.DataFrame([linha], columns=header)
+            # Cria um DataFrame com uma única linha contendo os dados coletados.
+            df = pd.DataFrame([linha], columns=header)
 
-        # Salva os dados no CSV no modo append (sem sobrescrever o arquivo);
-        df.to_csv(arquivoCSV, mode='a', header=False, index=False, encoding='utf-8')
+            # Salva os dados no CSV no modo append (sem sobrescrever o arquivo);
+            df.to_csv(arquivoCSV, mode='a', header=False, index=False, encoding='utf-8')
 
-        time.sleep(60)
-        # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).
+            time.sleep(60)
+            # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).
+except KeyboardInterrupt:
+    print("Encerrando Monitoramento...")
+    
+    for modulo, proc in processos_ativos.items():
+        try:
+            proc.terminate()
+            proc.wait(timeout=2)
+        except:
+            proc.kill()
+
+    print("Todos os processos finalizados com sucesso!\nPrograma finalizado.")

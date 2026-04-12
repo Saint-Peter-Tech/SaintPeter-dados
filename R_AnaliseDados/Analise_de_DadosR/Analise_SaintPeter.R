@@ -1,156 +1,140 @@
-library(readr)
-library(lubridate)
-
-set.seed(123) # para reproduzir os resultados
-
-#===================== Data Frame de Refência =================================
-
-#Importando csvs de base
-captura_monitor1 <- read_csv("../dados_brutos/dados_brutos_gustavo.csv")
-
-captura_monitor2 <- read_csv("../dados_brutos/dados_brutos_diego.csv")
-
-captura_monitor3 <- read_csv("../dados_brutos/dados_brutos_pedro.csv")
-
-captura_monitor4 <- read_csv("../dados_brutos/dados_brutos_maria.csv")
-
-#Criando df de base de referência
-df_base <- rbind(captura_monitor1, captura_monitor2, captura_monitor3,
-                 captura_monitor4)
-
-#Criando IDs
-
-df_base$id <- 1:nrow(df_base)
-
-#Convertendo para data e hora
-df_base$timestamp <- as.POSIXct(df_base$timestamp, format = "%Y-%m-%d %H:%M:%OS")
 
 
 
-#Criando coluna hora
-df_base$hora <- hour(df_base$timestamp)
-
-summary(df_base)
-
-#Pegando as médias
-
-media_cpu <- mean(df_base$cpu_percent)
-
-media_ram <- mean(df_base$ram_percent )
-
-media_bytes_send <- mean(df_base$bytes_sent_per_sec)
-
-media_bytes_rec <- mean(df_base$bytes_recv_per_sec)
-
-#Pegando medianas
-
-mediana_cpu <- median(df_base$cpu_percent)
-
-mediana_ram <- median(df_base$ram_percent)
-
-mediana_bytes_send <- median(df_base$bytes_sent_per_sec)
-
-mediana_bytes_rec <- median(df_base$bytes_recv_per_sec)
-
-#Pegando desvio padrão
-
-desvio_cpu <- sd(df_base$cpu_percent)
-
-desvio_ram <- sd(df_base$ram_percent)
-
-desvio_bytes_send <- sd(df_base$bytes_sent_per_sec)
-
-desvio_bytes_rec <- sd(df_base$bytes_recv_per_sec)
-
-# Ordenando por user e tempo
-df_base <- df_base[order(df_base$user, df_base$timestamp), ]
-
-
-#Descobrindo intervalo de tempo 
-
-intervalo_geral <- mean(c(
-  mean(as.numeric(diff(df_base$timestamp[df_base$user == "gusta"]))),
-  mean(as.numeric(diff(df_base$timestamp[df_base$user == "diegohenrique"]))),
-  mean(as.numeric(diff(df_base$timestamp[df_base$user == "maria-maia"]))),
-  mean(as.numeric(diff(df_base$timestamp[df_base$user == "Pedro Sousa"])))
-))
-
-intervalo_geral <- round(intervalo_geral)
-
-#Intervalo de captura é 11
-intervalo_geral
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++
+#Data e hora de cirurgias eletivas e de emergencia:
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
+#Fontes:
 
-#==================== SIMULAÇÃO ====================
+#[Ref1] Amy S. Nowacki, “Surgery Timing Dataset”, TSHS Resources Portal (2016)
 
+#[Ref2] Redação Mobilidade, "Sexta-feira e sábado são os dias em que
+#ocorrem mais acidentes de trânsito"
 
-#Função de probabilidade de estar ligado a cada periodo,
-#De acordo com pesquisa relacionadas a estatisticas de qtd de acidentes 
-#e cirurgias a cada horario
+#[Ref3] Segunda, "sexta e sábado são os dias da semana
+#com mais acidentes no trânsito. Entenda", segs (2024)
 
-prob_ligado <- function(hora) {
-  if (hora >= 7 & hora < 12) {
-    return(0.80)  
-  } else if (hora >= 12 & hora < 15) {
-    return(0.70)  
-  } else if (hora >= 15 & hora < 16) {
-    return(0.20)  
-  } else if (hora >= 16 & hora < 20) {
-    return(0.60)  
-  } else if (hora >= 20 & hora < 23) {
-    return(0.90) 
-  } else if (hora >= 0 & hora < 6) {
-    return(0.90)  
-  } else {
-    return(0.30)  
-  }
-}
-
-#Horario de inicio da simulação
-
-hora_atual <- 21 
-
-prob <- prob_ligado(hora_atual)
-
-#Função para gerar users
-
-gerar_usuarios <- function(nome_usuario, inicio, fim) {
-  
-  registros <- list()
-  
-  #Probabilidade aleatoria de picos por hora
-  
-  prob_pico_hora <- runif(1, min = 0.001, max = 0.04)
-  
-  #Probabilidade de picos por leitura (uma hora = 3600 seg)
-  
-  prob_pico_leitura <- prob_spike_hora / (3600 / intervalo_geral)
-  
-  fim_do_spike <- as.POSIXct("1901-01-01") #Data antiga so para garantir
-  
-  while (inicio > fim) {
-    
-    hora <- hour(inicio) #Horario "atual"
-    
-    #Verificando se o monitor esta ligado
-    
-    if (runif(1) < prob_ligado(hora)){
-      
-    }
-    
-    
-  }
-  
-}
+#[Ref4] 
+#Meschino MT, Giles AE, Rice TJ, Saddik M, Doumouras AG, Nenshi R, Allen L,
+#Vogt K, Engels PT.
+#Operative timing is associated with increased morbidity and mortality in
+#patients undergoing emergency general surgery: a multisite study of emergency
+#general services in a single academic network. 
+#Can J Surg. 2020 Jul 9;63(4):E321-E328. doi: 10.1503/cjs.012919. PMID: 32644317;
+#PMCID: PMC7458678.
 
 
 
+#-------------Data e Hora de Cirurgias eletivas [Ref1]------------------------
+
+#Carregar arquivo Ref1
+load(file.choose())
+
+#Dias de cirurgias eletivas
+
+contagem_dia <- table(stata_data$dow)
+
+df_eletiva_semana <- data.frame(
+  dia_semana = names(contagem_dia),
+  pacientes  = as.numeric(contagem_dia)
+)
+
+converter_dias <- c(
+  "Mon" = "Segunda",
+  "Tue" = "Terça",
+  "Wed" = "Quarta",
+  "Thu" = "Quinta",
+  "Fri" = "Sexta",
+  "Sat" = "Sabado",
+  "Sun" = "Domingo"
+)
+
+df_eletiva_semana$dia_semana <- converter_dias[df_eletiva_semana$dia_semana]
+
+df_eletiva_semana$dia_semana <- factor(
+  df_eletiva_semana$dia_semana,
+  levels = c("Segunda", "Terça", "Quarta", "Quinta", "Sexta")
+)
+
+df_eletiva_semana$porcentagem <- round(df_eletiva_semana$pacientes
+                                       / 32001 * 100, 2)
+df_eletiva_semana$tipo <- "Eletiva"
+
+print(df_eletiva_semana)
+
+#Horarios de cirurgias eletivas
+
+stata_data$hora_inteira <- floor(stata_data$hour)
+
+contagem_hora <- table(stata_data$hora_inteira)
+
+df_eletiva_hora <- data.frame(
+  hora      = names(contagem_hora),
+  pacientes = as.numeric(contagem_hora)
+)
+
+df_eletiva_hora$hora <- as.numeric(df_eletiva_hora$hora)
+
+df_eletiva_hora$faixa_horaria <- ifelse(df_eletiva_hora$hora < 6, "00-06",
+                                        ifelse(df_eletiva_hora$hora < 12,
+                                               "06-12",
+                                               ifelse(df_eletiva_hora$hora < 18, 
+                                                      "12-18","18-24")))
+
+df_eletiva_hora$porcentagem <- round(df_eletiva_hora$pacientes 
+                                     / 32001 * 100, 2)
+df_eletiva_hora$tipo <- "Eletiva"
+
+print(df_eletiva_hora)
 
 
+#----------------Data e Hora de Cirurgias de emergencia --------------
 
+#Não existem dados estrururados, então tudo é uma estimativa
+#da realidade nessa parte. [Ref2], [Ref3], {Ref$}
 
+dias <- c("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sabado", "Domingo")
+
+pesos <- c(0.14, 0.13, 0.13, 0.14, 0.18, 0.17, 0.11)
+
+df_emergencia_semana$tipo <- "Emergencia"
+
+df_emergencia_semana$dia_semana <- factor(
+  df_emergencia_semana$dia_semana,
+  levels = c("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sabado", "Domingo")
+)
+
+df_emergencia_semana 
+
+#Cirurgias de emergencia por  hora
+
+horas <- 0:23
+
+pesos_hora <- c(
+  3,3,2,2,2,2,  
+  4,5,6,7,8,9,      
+  10,11,12,13,14,15,
+  17,18,19,18,16,14 
+)
+
+variacao_hora <- runif(24, 0.9, 1.1)
+
+valores_hora <- pesos_hora * variacao_hora
+
+porcentagem <- round(valores_hora / sum(valores_hora) * 100, 2)
+
+df_emergencia_hora <- data.frame(
+  hora = horas,
+  porcentagem = porcentagem
+)
+
+df_emergencia_hora$faixa_horaria <- ifelse(df_emergencia_hora$hora < 6, "00-06",
+                                    ifelse(df_emergencia_hora$hora < 12, "06-12",
+                                    ifelse(df_emergencia_hora$hora < 18, "12-18",
+                                           "18-24")))
 
 
 

@@ -115,85 +115,63 @@ def simular_processos_fantasmas():
     dia_semana = agora.weekday()
 
     # Dicionarios de probabilidades base, que serão manipuladas baseado no dia e semana:
+
+    #Criando pesos de probabilidade:
+
+    peso_dia = {
+        0: 18.34,  
+        1: 17.90,  
+        2: 16.62,  
+        3: 15.99,  
+        4: 18.56,  
+        5: 7.65,   
+        6: 4.95    
+    }
+
+    peso_hora = {
+        0: 2.64,
+        1: 1.77,
+        2: 1.11,
+        3: 1.00,
+        4: 1.18,
+        5: 1.27,
+        6: 2.20,
+        7: 19.57,
+        8: 8.16,
+        9: 4.55,
+        10: 6.34,
+        11: 7.18,
+        12: 6.72,
+        13: 6.22,
+        14: 5.18,
+        15: 3.38,
+        16: 2.91,
+        17: 2.60,
+        18: 2.57,
+        19: 2.20,
+        20: 2.32,
+        21: 2.78,
+        22: 2.95,
+        23: 3.19
+    }
+
+    peso_d = peso_dia[dia_semana] / 100
+    peso_h = peso_hora[hora] / 100
+
+    peso_total = (peso_d + peso_h)/2
+
+
     probabilidades = {
-        "ecg": 0.3,
-        "spo2": 0.3,
-        "bpm": 0.2,
-        "resp": 0.2,
+        "ecg": 0.1,
+        "spo2": 0.1,
+        "bpm": 0.1,
+        "resp": 0.1,
         "temperatura": 0.1,
         "pic": 0.05,
         "pvc": 0.05,
         "etco2": 0.1,
-        "pa": 0.2
+        "pa": 0.1
     }
-
-    if dia_semana <= 4:
-
-        if 6 <= hora < 8:
-            probabilidades.update({
-                "ecg": 0.9,
-                "spo2": 0.9,
-                "bpm": 0.8,
-                "temperatura": 0.7,
-                "etco2": 0.4
-            })
-
-        elif 8 <= hora < 12:
-            probabilidades.update({
-                "ecg": 0.95,
-                "spo2": 0.95,
-                "etco2": 0.8,
-                "bpm": 0.85,
-                "resp": 0.8
-            })
-
-        elif 12 <= hora < 17:
-            probabilidades.update({
-                "ecg": 0.95,
-                "spo2": 0.95,
-                "etco2": 0.85,
-                "resp": 0.85,
-                "temperatura": 0.7,
-                "pic": 0.3,
-                "pvc": 0.3
-            })
-
-        elif 17 <= hora < 20:
-            probabilidades.update({
-                "ecg": 0.9,
-                "spo2": 0.9,
-                "bpm": 0.8,
-                "pic": 0.4,
-                "pvc": 0.4
-            })
-
-    if 20 <= hora < 24:
-        probabilidades.update({
-            "ecg": 0.95,
-            "spo2": 0.95,
-            "etco2": 0.85,
-            "pic": 0.5,
-            "pvc": 0.5
-        })
-
-    elif 0 <= hora < 6:
-        probabilidades.update({
-            "ecg": 0.9,
-            "spo2": 0.9,
-            "etco2": 0.8,
-            "pic": 0.6,
-            "pvc": 0.6
-        })
-
-    if dia_semana >= 5 and 6 <= hora < 18:
-        probabilidades.update({
-            "ecg": 0.9,
-            "spo2": 0.95,
-            "bpm": 0.85,
-            "temperatura": 0.7,
-            "pic": 0.3,
-            "pvc": 0.3
-        })
 
 # Toda criação de probabilidade de X ou Y modulo estar ativo
 # feito com base em pesquisas de funciomamento hospitalar.

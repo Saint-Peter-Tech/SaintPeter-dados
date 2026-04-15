@@ -259,6 +259,8 @@ df_peso_dia$peso_final <- round(
 df_peso_dia$dia_semana <- factor(df_peso_dia$dia_semana, levels = todos_dias)
 
 print(df_peso_dia)
+print(df_peso_dia$peso_final)
+print(df_peso_dia$dia_semana)
 
 
 # --------------------- Pesos por hora ----------------------------------------
@@ -293,7 +295,7 @@ df_peso_hora$peso_final <- round(
   2
 )
 
-print(df_peso_hora)
+print(df_peso_hora$peso_final)
 
 
 #--- gráfico de pesos ----

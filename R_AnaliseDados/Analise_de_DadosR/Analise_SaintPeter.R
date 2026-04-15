@@ -160,68 +160,35 @@ df_emergencia_hora$faixa_horaria <- factor(df_emergencia_hora$faixa_horaria,
 
 #--------------Unificando Data Frames--------------------------
 
-df_eletiva_plot <- data.frame(
+df_eletiva_junto <- data.frame(
   hora = df_eletiva_hora$hora,
   valor = df_eletiva_hora$porcentagem,
   tipo = "Eletiva"
 )
 
-df_emergencia_plot <- data.frame(
+df_emergencia_junto <- data.frame(
   hora = df_emergencia_hora$hora,
   valor = df_emergencia_hora$porcentagem,
   tipo = "Emergência"
 )
 
-df_total <- rbind(df_eletiva_plot, df_emergencia_plot)
+df_total <- rbind(df_eletiva_junto, df_emergencia_junto)
 
-df_eletiva_semana_plot <- data.frame(
+df_eletiva_semana_junto <- data.frame(
   dia_semana = df_eletiva_semana$dia_semana,
   valor = df_eletiva_semana$porcentagem,
   tipo = "Eletiva"
 )
 
-df_emergencia_semana_plot <- data.frame(
+df_emergencia_semana_junto <- data.frame(
   dia_semana = df_emergencia_semana$dia_semana,
   valor = df_emergencia_semana$porcentagem,
   tipo = "Emergência"
 )
 
-df_semana_total <- rbind(df_eletiva_semana_plot, df_emergencia_semana_plot)
+df_semana_total <- rbind(df_eletiva_semana_junto, df_emergencia_semana_junto)
 
 #----------------Gráficos Cirurgias------------------
-
-ggplot(df_eletiva_semana, aes(x = dia_semana, y = pacientes)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Cirurgias Eletivas por Dia da Semana",
-       x = "Dia",
-       y = "Quantidade de Pacientes") +
-  theme_minimal()
-
-
-ggplot(df_eletiva_hora, aes(x = hora, y = porcentagem)) +
-  geom_line() +
-  labs(
-    title = "Cirurgias Eletivas por Hora",
-    x = "Hora do Dia",
-    y = "Porcentagem %"
-  ) +
-  theme_minimal() +
-  scale_x_continuous(breaks = 0:23)
-
-ggplot(df_emergencia_semana, aes(x = dia_semana, y = porcentagem)) +
-  geom_bar(stat = "identity") +
-  labs(
-    title = "Cirurgias de Emergência por Dia da Semana",
-    x = "Dia",
-    y = "Porcentagem %"
-  ) + theme_minimal()
-
-ggplot(df_emergencia_hora, aes(x = hora, y = porcentagem)) + geom_line() +
-  geom_point() +
-  labs(title = "Cirurgias de Emergência por Hora",
-       x = "Hora",
-       y = "Porcentagem %") +
-  theme_minimal() + scale_x_continuous(breaks = 0:23)
 
 
 ggplot(df_total, aes(x = hora, y = valor, color = tipo)) +
@@ -252,6 +219,98 @@ ggplot(df_semana_total, aes(x = dia_semana, y = valor, color = tipo, group = tip
     y = "Porcentagem %"
   ) +
   theme_minimal()
+
+
+#----------Gerando pesos para arq de captura python-----------------
+
+proporcao_eletiva    <- 0.55
+proporcao_emergencia <- 0.45
+
+todos_dias <- c("Segunda","Terça","Quarta","Quinta","Sexta","Sabado","Domingo")
+
+df_eletiva_semana_completo <- data.frame(
+  dia_semana  = todos_dias,
+  porcentagem = 0
+)
+
+for (i in df_eletiva_semana$dia_semana) {
+  df_eletiva_semana_completo$porcentagem[
+    df_eletiva_semana_completo$dia_semana == i
+  ] <- df_eletiva_semana$porcentagem[df_eletiva_semana$dia_semana == i]
+}
+
+df_peso_dia <- data.frame(
+  dia_semana         = todos_dias,
+  pct_eletiva        = df_eletiva_semana_completo$porcentagem,
+  pct_emergencia     = df_emergencia_semana$porcentagem
+)
+
+df_peso_dia$peso_combinado <- round(
+  proporcao_eletiva    * df_peso_dia$pct_eletiva +
+    proporcao_emergencia * df_peso_dia$pct_emergencia,
+  2
+)
+
+df_peso_dia$peso_final <- round(
+  df_peso_dia$peso_combinado/sum(df_peso_dia$peso_combinado) * 100,
+  2
+)
+
+df_peso_dia$dia_semana <- factor(df_peso_dia$dia_semana, levels = todos_dias)
+
+print(df_peso_dia)
+
+
+# --------------------- Pesos por hora ----------------------------------------
+
+todas_horas <- 0:23
+
+df_eletiva_hora_completo <- data.frame(
+  hora        = todas_horas,
+  porcentagem = 0
+)
+
+for (i in df_eletiva_hora$hora) {
+  df_eletiva_hora_completo$porcentagem[
+    df_eletiva_hora_completo$hora == i
+  ] <- df_eletiva_hora$porcentagem[df_eletiva_hora$hora == i]
+}
+
+df_peso_hora <- data.frame(
+  hora           = todas_horas,
+  pct_eletiva    = df_eletiva_hora_completo$porcentagem,
+  pct_emergencia = df_emergencia_hora$porcentagem
+)
+
+df_peso_hora$peso_combinado <- round(
+  proporcao_eletiva    * df_peso_hora$pct_eletiva +
+    proporcao_emergencia * df_peso_hora$pct_emergencia,
+  2
+)
+
+df_peso_hora$peso_final <- round(
+  df_peso_hora$peso_combinado / sum(df_peso_hora$peso_combinado) * 100,
+  2
+)
+
+print(df_peso_hora)
+
+
+#--- gráfico de pesos ----
+
+ggplot(df_peso_dia, aes(x = dia_semana, y = peso_final)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Cirurgias por Dia",
+       x = "Dia", y = "Porcentagem de Cirurgias Hora") +
+  theme_minimal()
+
+ggplot(df_peso_hora, aes(x = hora, y = peso_final)) +
+  geom_line(linewidth = 1, color = "blue") +
+  geom_point(size = 2, color = "blue") +
+  labs(title = "Cirurgias por Hora",
+       x = "Hora", y = "Porcentagem de Cirurgias Hora") +
+  theme_minimal() +
+  scale_x_continuous(breaks = 0:23)
 
 
 

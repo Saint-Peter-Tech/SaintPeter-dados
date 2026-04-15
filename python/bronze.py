@@ -27,7 +27,6 @@ header = [
     "timestamp",
     "cpu_percent",
     "ram_percent",
-    "ram_used_gb",
     "disk_usage_percent",
     "bytes_sent_per_sec",
     "bytes_recv_per_sec",
@@ -84,9 +83,12 @@ pasta = './dados_brutos'
 os.makedirs(pasta, exist_ok=True)
 
 
+# ID do Monitor MUDAR SEMPRE!!!  
+id_monitor = 1
+
 # Cria a pasta caso não exista (evita erro ao salvar arquivo).
 
-arquivoCSV = f"{pasta}/dados_brutos.csv"
+arquivoCSV = f"{pasta}/M{id_monitor} - {datetime.now().strftime('%d-%m-%Y %H_%M')}.csv"
 pasta_processos = "./processos_fantasmas"
 
 # Cria a pasta para os Processos Fantasmas (modulos) caso ela não exista.
@@ -286,26 +288,22 @@ try:
         inicio = time.time()
 
         # Gera um intervalo aleatorio para troca de módulos
-        interval = randint(1800, 28800)
+        interval = randint(300, 600)
 
         while time.time() - inicio < interval:
-
             # Início do loop infinito para captura contínua dos dados do sistema:
 
             mem = psutil.disk_usage('/')
             # Captura informações de uso do disco (total, usado, livre e porcentagem);
 
-            ram = psutil.virtual_memory()
-            # Captura informações da memória RAM (total, disponível, usado, etc);
+            ram = psutil.virtual_memory().percent
+            # Captura informações da memória RAM (porcentagem)
 
             cpu = psutil.cpu_percent(interval=1)
             # Captura o uso percentual da CPU (intervalo de 1 segundo para média mais precisa);
 
-            date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            date = datetime.now().strftime('%d-%m-%Y %H_%M_%S')
             # Captura o timestamp atual da coleta formatado;
-
-            id_monitor = 1
-            # Simulando ser o Monitor X, SEMPRE MUDAR!!!;
 
             net = psutil.net_io_counters()
             # Captura os bytes totais enviados e recebidos até o momento;
@@ -330,13 +328,36 @@ try:
             # Captura o status dos módulos simulados
             modulos_status = verificar_modulos()
 
+            # Criando dicionario para pegar os processos realmente ativos no momento
+
+            atuais = []
+
+            for modulo in modulos:
+                if(modulos_status[modulo] == "Ativo"):
+                    atuais.append(modulos_status[modulo])
+
+
+            # Aumentando os valores para cada módulo ativo
+            for atual in atuais:
+
+                bytes_sent_per_sec = bytes_sent_per_sec - (bytes_sent_per_sec * 0.1)
+                bytes_recv_per_sec = bytes_sent_per_sec - (bytes_sent_per_sec * 0.1)
+
+                if(cpu < 80):
+                    cpu += randint(3, 8)
+                else: 
+                    cpu = randint(70, 80)
+                if(ram < 80):
+                    ram += randint(3, 8)
+                else:
+                    ram = randint(70, 80)
+
             # Cria uma lista com os dados coletados
             linha = [
                 id_monitor,
                 date,
                 cpu,
-                ram.percent,
-                round(ram.used / (1024**3), 2),
+                ram,
                 mem.percent,
                 bytes_sent_per_sec,
                 bytes_recv_per_sec,
@@ -345,7 +366,7 @@ try:
             # Adiciona o status dos módulos na linha
             for modulo in modulos:
                 linha.append(modulos_status[modulo])
-
+                
             # Cria um DataFrame com uma única linha contendo os dados coletados.
             df = pd.DataFrame([linha], columns=header)
 

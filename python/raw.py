@@ -382,7 +382,7 @@ try:
             time.sleep(60)
             # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).
 
-            upload_file("../dados_brutos/dados_brutos.csv", "saint-peter", "raw/dados_brutos.csv")
+            upload_file(arquivoCSV, "saint-peter", "raw/" + arquivoCSV)
 
 except KeyboardInterrupt:
     print("Encerrando Monitoramento...")

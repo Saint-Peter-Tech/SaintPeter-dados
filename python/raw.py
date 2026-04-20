@@ -109,6 +109,28 @@ if not os.path.exists(arquivoCSV):
 # Criando apra guardar processos fantasmas e ter um controle melhor deles.
 processos_ativos = {}
 
+#Criando pesos (normalizados) de probabilidade de acordo com R:
+
+peso_dia = {
+    0: 17.61,  
+    1: 16.87,  
+    2: 16.10,  
+    3: 16.21,  
+    4: 19.67,  
+    5:  8.22,  
+    6:  5.32   
+}
+
+peso_hora = {
+    0: 4.06,  1: 2.71,  2:1.70,  3: 1.64,
+    4: 1.95,  5: 2.00,  6:2.52,  7:12.07,
+    8: 6.01,  9: 4.24, 10: 5.44, 11: 6.12,
+    12:5.65, 13: 5.16, 14: 4.37, 15: 3.16,
+    16:3.12, 17: 3.39, 18: 3.80, 19: 3.71,
+    20:3.56, 21: 4.14, 22: 4.66, 23: 4.80
+}
+
+
 def simular_processos_fantasmas():
     # Função responsável por criar processos simulados (módulos)
     # com base em probabilidades dependentes de horário e dia da semana
@@ -117,64 +139,38 @@ def simular_processos_fantasmas():
     hora = agora.hour
     dia_semana = agora.weekday()
 
-    # Dicionarios de probabilidades base, que serão manipuladas baseado no dia e semana:
-
-    #Criando pesos de probabilidade:
-
-    peso_dia = {
-        0: 18.34,  
-        1: 17.90,  
-        2: 16.62,  
-        3: 15.99,  
-        4: 18.56,  
-        5: 7.65,   
-        6: 4.95    
-    }
-
-    peso_hora = {
-        0: 2.64,
-        1: 1.77,
-        2: 1.11,
-        3: 1.00,
-        4: 1.18,
-        5: 1.27,
-        6: 2.20,
-        7: 19.57,
-        8: 8.16,
-        9: 4.55,
-        10: 6.34,
-        11: 7.18,
-        12: 6.72,
-        13: 6.22,
-        14: 5.18,
-        15: 3.38,
-        16: 2.91,
-        17: 2.60,
-        18: 2.57,
-        19: 2.20,
-        20: 2.32,
-        21: 2.78,
-        22: 2.95,
-        23: 3.19
-    }
-
     peso_d = peso_dia[dia_semana] / 100
     peso_h = peso_hora[hora] / 100
 
     peso_total = (peso_d + peso_h)/2
 
 
+    #Probabilidade por módulo:
     probabilidades = {
-        "ecg": 0.1,
-        "spo2": 0.1,
-        "bpm": 0.1,
-        "resp": 0.1,
-        "temperatura": 0.1,
-        "pic": 0.05,
-        "pvc": 0.05,
-        "etco2": 0.1,
-        "pa": 0.1
+        "ecg": 0.85,
+        "spo2":0.80,
+        "bpm": 0.80,
+        "resp": 0.75,
+        "temperatura":0.70,
+        "pa": 0.65,
+        "etco2": 0.55,
+        "pvc": 0.30,
+        "pic": 0.20,
     }
+
+    #De acordo com o R, horarios com mais acidentes aumentam o uso de certos módulos:
+
+    if dia_semana in (4, 5):
+        probabilidades["pic"] = 0.35
+        probabilidades["pvc"] = 0.45
+
+    if hora >= 20 or hora < 4:
+        probabilidades["pic"] = 0.40
+        probabilidades["pvc"] = 0.50
+
+    if dia_semana in (4, 5) and (hora >= 20 or hora < 4):
+        probabilidades["pic"] = 0.55
+        probabilidades["pvc"] = 0.55
 
 # Toda criação de probabilidade de X ou Y modulo estar ativo
 # feito com base em pesquisas de funciomamento hospitalar.
@@ -198,6 +194,8 @@ def simular_processos_fantasmas():
 
         if ativo:
             prob = min(prob * 1.2, 1)
+
+        prob = min(prob * (0.5 + peso_total * 3), 1.0)
 
         if random.random() < prob:
             if not ativo:
@@ -344,10 +342,11 @@ try:
 
 
             # Aumentando os valores para cada módulo ativo
-            for atual in atuais:
 
-                bytes_sent_per_sec = bytes_sent_per_sec - (bytes_sent_per_sec * 0.1)
-                bytes_recv_per_sec = bytes_sent_per_sec - (bytes_sent_per_sec * 0.1)
+            carga = peso_hora[datetime.now().hour] / 12.07
+            bytes_sent_per_sec = bytes_sent_per_sec * (1.0 - carga * 0.4)
+            bytes_recv_per_sec = bytes_recv_per_sec * (1.0 - carga * 0.4)
+            for atual in atuais:
 
                 if(cpu < 80):
                     cpu += randint(3, 8)

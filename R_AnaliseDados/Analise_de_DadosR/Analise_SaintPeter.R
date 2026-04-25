@@ -1,5 +1,6 @@
 
 library(ggplot2)
+library(dplyr)
 
 #+++++++++++++++++++++++++++++++++++++++++++++++++++++
 #Data e hora de cirurgias eletivas e de emergencia:
@@ -53,6 +54,9 @@ converter_dias <- c(
 )
 
 df_eletiva_semana$dia_semana <- converter_dias[df_eletiva_semana$dia_semana]
+
+
+
 
 df_eletiva_semana$dia_semana <- factor(
   df_eletiva_semana$dia_semana,
@@ -110,19 +114,19 @@ dias <- c("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sabado", "Domingo")
 
 pesos <- c(0.14, 0.13, 0.13, 0.14, 0.18, 0.17, 0.11)
 
-df_emergencia_semana <- data.frame(
+df_emerg_semana<- data.frame(
   dia_semana = dias,
   porcentagem = pesos *100
 )
 
-df_emergencia_semana$dia_semana <- factor(
-  df_emergencia_semana$dia_semana,
+df_emerg_semana$dia_semana <- factor(
+  df_emerg_semana$dia_semana,
   levels = c("Segunda","Terça", "Quarta", "Quinta", "Sexta", "Sabado","Domingo")
 )
 
-df_emergencia_semana$tipo <- "Emergencia"
+df_emerg_semana$tipo <- "Emergencia"
 
-df_emergencia_semana 
+df_emerg_semana 
 
 #Cirurgias de emergência por  hora
 
@@ -180,13 +184,13 @@ df_eletiva_semana_junto <- data.frame(
   tipo = "Eletiva"
 )
 
-df_emergencia_semana_junto <- data.frame(
-  dia_semana = df_emergencia_semana$dia_semana,
-  valor = df_emergencia_semana$porcentagem,
+df_emerg_semana_junto <- data.frame(
+  dia_semana = df_emerg_semana$dia_semana,
+  valor = df_emerg_semana$porcentagem,
   tipo = "Emergência"
 )
 
-df_semana_total <- rbind(df_eletiva_semana_junto, df_emergencia_semana_junto)
+df_semana_total <- rbind(df_eletiva_semana_junto, df_emerg_semana_junto)
 
 #----------------Gráficos Cirurgias------------------
 
@@ -242,7 +246,7 @@ for (i in df_eletiva_semana$dia_semana) {
 df_peso_dia <- data.frame(
   dia_semana         = todos_dias,
   pct_eletiva        = df_eletiva_semana_completo$porcentagem,
-  pct_emergencia     = df_emergencia_semana$porcentagem
+  pct_emergencia     = df_emerg_semana$porcentagem
 )
 
 df_peso_dia$peso_combinado <- round(
@@ -315,4 +319,83 @@ ggplot(df_peso_hora, aes(x = hora, y = peso_final)) +
   scale_x_continuous(breaks = 0:23)
 
 
+#------------------------------------------------------------
+#----------------Analise de Simulação----------------------
+#------------------------------------------------------------
+
+#------------Rede  x Qtd de maq ----------------------------------
+
+df_simulacao <- read.csv("C:/Users/gusta/Desktop/saint_peter/SaintPeter-dados/R_AnaliseDados/Analise_de_DadosR/simulacao.csv")
+
+df_simulacao$timestamp <- as.POSIXct(df_simulacao$timestamp, format="%d-%m-%Y %H_%M_%S")
+
+df_simulacao$ligada <- ifelse(df_simulacao$cpu_percent > 0, 1, 0)
+
+df_simulacao$uso_rede <- df_simulacao$bytes_sent_per_sec +
+  df_simulacao$bytes_recv_per_sec
+
+
+maq_ligadas <- aggregate(ligada ~ timestamp, df_simulacao, sum)
+
+
+rede_media <- aggregate(uso_rede ~ timestamp, df_simulacao, mean)
+
+
+df_rede <- merge(maq_ligadas, rede_media, by="timestamp")
+
+
+correlacao <- cor(df_rede$ligada, df_rede$uso_rede)
+
+
+plot(df_rede$ligada, df_rede$uso_rede,
+     pch=16,
+     col="pink",
+     xlab="Máquinas Ligadas",
+     ylab="Uso médio de rede",
+     main=paste("Rede X Máquinas (correlação =", round(correlacao,2),")"))
+
+abline(lm(uso_rede ~ ligada, data=df_rede),
+       col="red", lwd=2)
+
+#----------------Módulos X CPU -------------------
+
+df_simulacao$modulos_ativos<- 
+  (df_simulacao$bpm_status == "Ativo")+
+  (df_simulacao$pa_status == "Ativo") +
+  (df_simulacao$spo2_status == "Ativo") +
+  (df_simulacao$resp_status == "Ativo")+
+  (df_simulacao$temperatura_status == "Ativo") +
+  (df_simulacao$pic_status == "Ativo") +
+  (df_simulacao$pvc_status == "Ativo") +
+  (df_simulacao$ecg_status == "Ativo") +
+  (df_simulacao$etco2_status == "Ativo")
+
+
+correlacao_cpu_mod <- cor(df_simulacao$modulos_ativos,
+                  df_simulacao$cpu_percent)
+
+modelo <- lm(cpu_percent ~ modulos_ativos,
+             data = df_simulacao)
+
+
+plot(df_simulacao$modulos_ativos, df_simulacao$cpu_percent,
+     pch=16,
+     col="blue",
+     xlab="Quantidade de módulos ativos",
+     ylab="CPU %",
+     main=paste("CPU x Módulos (correlação =",round(correlacao_cpu_mod,2),")"))
+abline(modelo, col="red", lwd=2)
+
+#----------Módulos X RAM ---------------------------------------
+
+correlacao_ram_mod <- cor(df_simulacao$modulos_ativos, df_simulacao$ram_percent)
+
+modelo_ram <- lm(ram_percent ~ modulos_ativos, data = df_simulacao)
+
+plot(df_simulacao$modulos_ativos, df_simulacao$ram_percent,
+     col="darkgreen",
+     xlab="Quantidade de módulos ativos",
+     ylab="RAM %",
+     main=paste("RAM X Módulos (correlação =", round(correlacao_ram_mod, 2), ")"))
+abline(modelo_ram, col="red", lwd=2)
 

@@ -9,7 +9,7 @@ import json
 # mysql.connector = Conexão com Banco de dados para validações;
 # dotenv = Criação de variaveis de ambiente
 # OS = Funções para checar existência de pastas/arquivos;
-# json = Criar arquivos .json para melhor manipulação no Front;
+# json = Criar arquivos .json para melhor manipulação no Front.
 
 # Criando caminho da pasta RAW e do Arquivo Raw, onde estarão os dados brutos (LOCAL!!! MUDAR PARA S3)
 pastaRaw = './dados_brutos'

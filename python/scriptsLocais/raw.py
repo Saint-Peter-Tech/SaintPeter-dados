@@ -3,14 +3,11 @@ import time
 import pandas as pd
 from datetime import datetime
 import os
-import boto3
-from botocore.exceptions import ClientError
 import subprocess
 import random
 from random import randint
 import sys
-import logging
-from dotenv import load_dotenv
+import os
 
 # Importando Bibliotecas Necessárias:
 # psutil = Captura de Hardware e processos;
@@ -18,12 +15,10 @@ from dotenv import load_dotenv
 # pandas as pd = Estrutura e manipulação de dados (DataFrame) e exportação para CSV;
 # Datetime = Pegar a hora atual da Captura;
 # OS = Funções para checar existência de pastas/arquivos;
-# boto3 = Interagir com a AWS (s3);
 # subprocess = Gerar processos fantasmas para simular modulos;
-# random =  Utilizado da mesma forma que um rnorm para criar padrões;
-# randomint = Gera um random entre intervalos;
-# sys = Sendo usado para pegar o Python que está sendo executado no PC, evitando assim conflitos;
-# logging = Debug e registrar erros.
+# random =  Utilizado da mesma forma que um rnorm para criar padrões.
+# randomint = Gera um random entre intervalos
+# sys = Sendo usado para pegar o Python que está sendo executado no PC, evitando assim conflitos
 
 
 header = [
@@ -77,8 +72,8 @@ modulos = {
 }
 
 # Definindo os Módulos que serão capturados:
-# Cada módulo representa um "módulo físico" do monitor multiparamétrico;
-# Aqui estamos simulando esses módulos como processos rodando no sistema.
+# Cada módulo representa um "módulo físico" do monitor multiparamétrico
+# Aqui estamos simulando esses módulos como processos rodando no sistema
 
 pasta = './dados_brutos'
 
@@ -91,13 +86,21 @@ os.makedirs(pasta, exist_ok=True)
 id_monitor = 1
 
 # Cria a pasta caso não exista (evita erro ao salvar arquivo).
+
+arquivoCSV = f"{pasta}/M{id_monitor} - {datetime.now().strftime('%d-%m-%Y %H_%M')}.csv"
 pasta_processos = "./processos_fantasmas"
 
 # Cria a pasta para os Processos Fantasmas (modulos) caso ela não exista.
 os.makedirs(pasta_processos, exist_ok=True)
 
-# Carregando dot env para acessar credenciais depois.
-load_dotenv()
+
+# Define o caminho completo do arquivo CSV dentro da pasta criada.
+
+if not os.path.exists(arquivoCSV):
+    df_init = pd.DataFrame(columns=header)
+    df_init.to_csv(arquivoCSV, index=False)
+
+# Cria o arquivo CSV com apenas o cabeçalho caso ele ainda não exista.
 
 # Criando apra guardar processos fantasmas e ter um controle melhor deles.
 processos_ativos = {}
@@ -250,22 +253,6 @@ def verificar_modulos():
 
     return status_modulos
 
-def upload_file(file_name, bucket, object_name=None):
-    if object_name is None:
-        object_name = os.path.basename(file_name)
-
-    # Enviando arquivo
-    s3_client = boto3.client('s3',
-        aws_access_key_id=os.getenv("aws_access_key_id"),
-        aws_secret_access_key=os.getenv("aws_secret_access_key"),
-        aws_session_token=os.getenv("aws_session_token"))
-    try:
-        response = s3_client.upload_file(file_name, bucket, object_name)
-    except ClientError as e:
-        logging.error(e)
-        return False
-    return True
-
 try:
     while True:
 
@@ -275,19 +262,11 @@ try:
         # Pega o inicio do While
         inicio = time.time()
 
-        while time.time() - 600:
+        # Gera um intervalo aleatorio para troca de módulos
+        interval = randint(300, 600)
+
+        while time.time() - inicio < interval:
             # Início do loop infinito para captura contínua dos dados do sistema:
-
-            
-            # Define o caminho completo do arquivo CSV dentro da pasta criada.
-
-            arquivoCSV = f"{pasta}/M{id_monitor} - {datetime.now().strftime('%d-%m-%Y %H_%M')}.csv"
-
-            if not os.path.exists(arquivoCSV):
-                df_init = pd.DataFrame(columns=header)
-                df_init.to_csv(arquivoCSV, index=False)
-
-            # Cria o arquivo CSV com apenas o cabeçalho caso ele ainda não exista.
 
             mem = psutil.disk_usage('/')
             # Captura informações de uso do disco (total, usado, livre e porcentagem);
@@ -369,9 +348,6 @@ try:
 
             # Salva os dados no CSV no modo append (sem sobrescrever o arquivo);
             df.to_csv(arquivoCSV, mode='a', header=False, index=False, encoding='utf-8')
-
-            # Envia para o S3
-            upload_file(arquivoCSV, os.getenv("bucket"), "raw/" + os.path.basename(arquivoCSV))
 
             time.sleep(60)
             # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).

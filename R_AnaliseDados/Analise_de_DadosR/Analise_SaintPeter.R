@@ -36,12 +36,16 @@ load(file.choose())
 
 #Dias de cirurgias eletivas
 
+#Criando Df com base no DataSet
+
 contagem_dia <- table(stata_data$dow)
 
 df_eletiva_semana <- data.frame(
   dia_semana = names(contagem_dia),
   pacientes  = as.numeric(contagem_dia)
 )
+
+#Convertendo o idioma
 
 converter_dias <- c(
   "Mon" = "Segunda",
@@ -57,12 +61,13 @@ df_eletiva_semana$dia_semana <- converter_dias[df_eletiva_semana$dia_semana]
 
 
 
-
+#Ordenando os dias
 df_eletiva_semana$dia_semana <- factor(
   df_eletiva_semana$dia_semana,
   levels = c("Segunda", "Terça", "Quarta", "Quinta", "Sexta")
 )
 
+#Realizando calculo de porcentagem
 df_eletiva_semana$porcentagem <- round(
   df_eletiva_semana$pacientes / sum(df_eletiva_semana$pacientes) * 100, 2
 )
@@ -209,7 +214,7 @@ ggplot(df_total, aes(x = hora, y = valor, color = tipo)) +
   labs(
     title = "Eletivas vs Emergência por Hora",
     x = "Hora",
-    y = "Porcentagem %"
+    y = "Porcentagem de Cirurgias %"
   ) +
   theme_minimal() +
   scale_x_continuous(breaks = 0:23)
@@ -220,7 +225,7 @@ ggplot(df_semana_total, aes(x = dia_semana, y = valor, color = tipo, group = tip
   labs(
     title = "Cirurgias Eletivas vs Emergência por Dia da Semana",
     x = "Dia",
-    y = "Porcentagem %"
+    y = "Porcentagem de Cirurgias %"
   ) +
   theme_minimal()
 
@@ -307,7 +312,7 @@ print(df_peso_hora$peso_final)
 ggplot(df_peso_dia, aes(x = dia_semana, y = peso_final)) +
   geom_bar(stat = "identity", fill = "blue") +
   labs(title = "Cirurgias por Dia",
-       x = "Dia", y = "Porcentagem de Cirurgias Hora") +
+       x = "Dia", y = "Porcentagem de Cirurgias Dia") +
   theme_minimal()
 
 ggplot(df_peso_hora, aes(x = hora, y = peso_final)) +
@@ -346,6 +351,7 @@ df_rede <- merge(maq_ligadas, rede_media, by="timestamp")
 
 correlacao <- cor(df_rede$ligada, df_rede$uso_rede)
 
+options(scipen = 999)
 
 plot(df_rede$ligada, df_rede$uso_rede,
      pch=16,

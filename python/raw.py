@@ -338,16 +338,20 @@ try:
             carga = peso_hora[datetime.now().hour] / 12.07
             bytes_sent_per_sec = bytes_sent_per_sec * (1.0 - carga * 0.4)
             bytes_recv_per_sec = bytes_recv_per_sec * (1.0 - carga * 0.4)
-            for atual in atuais:
+            
+            n_ativos = len(atuais)
 
-                if(cpu < 80):
-                    cpu += randint(3, 8)
-                else: 
-                    cpu = randint(70, 80)
-                if(ram < 80):
-                    ram += randint(3, 8)
-                else:
-                    ram = randint(70, 80)
+            incremento_ram = n_ativos * randint(2, 4)
+            if ram + incremento_ram < 85:
+                ram += incremento_ram
+            else:
+                ram = randint(70,80)
+
+            incremento_cpu = n_ativos * randint(2, 4)
+            if cpu + incremento_cpu <85:
+                cpu += incremento_cpu
+            else:
+                cpu = randint(70, 80)
 
             # Cria uma lista com os dados coletados
             linha = [

@@ -11,6 +11,7 @@ from random import randint
 import sys
 import logging
 from dotenv import load_dotenv
+from io import StringIO
 
 # Importando Bibliotecas Necessárias:
 # psutil = Captura de Hardware e processos;
@@ -80,21 +81,9 @@ modulos = {
 # Cada módulo representa um "módulo físico" do monitor multiparamétrico;
 # Aqui estamos simulando esses módulos como processos rodando no sistema.
 
-pasta = './dados_brutos'
-
-# Criando o caminho da pasta para salvar o CSV.
-
-os.makedirs(pasta, exist_ok=True)
-
 
 # ID do Monitor MUDAR SEMPRE!!!  
 id_monitor = 1
-
-# Cria a pasta caso não exista (evita erro ao salvar arquivo).
-pasta_processos = "./processos_fantasmas"
-
-# Cria a pasta para os Processos Fantasmas (modulos) caso ela não exista.
-os.makedirs(pasta_processos, exist_ok=True)
 
 # Carregando dot env para acessar credenciais depois.
 load_dotenv()
@@ -180,9 +169,8 @@ def simular_processos_fantasmas():
 # de ele continuar ativo e tem um else para matar os processos fantasmas porem se if
 # (random.random < prob) ele cria o processo fantasma.
 
-    for modulo, arquivos in modulos.items():
+    for modulo in modulos:
         prob = probabilidades.get(modulo, 0)
-
         ativo = modulo in processos_ativos
 
         if ativo:
@@ -192,17 +180,11 @@ def simular_processos_fantasmas():
 
         if random.random() < prob:
             if not ativo:
-                for script in arquivos:
-                        caminho = os.path.join(pasta_processos, script)
-
-                        if not os.path.exists(caminho):
-                            with open(caminho, "w") as f:
-                                f.write("import time\nwhile True:\n    time.sleep(1)")
-
-                        proc = subprocess.Popen(
-                            [sys.executable, caminho],
-                            )
-                        processos_ativos[modulo] = proc
+                proc = subprocess.Popen(
+                    [sys.executable, "-c",
+                     f"import time; modulo='{modulo}';\nwhile True: time.sleep(1)"]
+                )
+                processos_ativos[modulo] = proc
         else:
             if ativo:
                 proc = processos_ativos[modulo]
@@ -220,12 +202,10 @@ def verificar_modulos():
     # Função responsável por verificar se os módulos estão ativos no sistema
 
     status_modulos = {}
-
-    # Captura todos os processos em execução no sistema
     processos = list(psutil.process_iter(['cmdline']))
 
-    for nome_modulo, nomes_processos in modulos.items():
-
+    # Buscando o nome dos modulos
+    for nome_modulo in modulos:
         ativo = False
 
         for proc in processos:
@@ -233,61 +213,42 @@ def verificar_modulos():
                 if proc.info['cmdline']:
                     comando = " ".join(proc.info['cmdline'])
 
-                    # Verifica se o nome do script está presente no processo
-                    for nome in nomes_processos:
-                        if nome in comando:
-                            ativo = True
-                            break
-
-                if ativo:
-                    break
+                    if f"modulo='{nome_modulo}'" in comando:
+                        ativo = True
+                        break
 
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
-
-        # Define o status do módulo
+            
+        # Marcando como inativo ou ativo caso tenha ou não tenha encontrado o nome
         status_modulos[nome_modulo] = "Ativo" if ativo else "Inativo"
 
     return status_modulos
 
-def upload_file(file_name, bucket, object_name=None):
-    if object_name is None:
-        object_name = os.path.basename(file_name)
-
-    # Enviando arquivo
-    s3_client = boto3.client('s3',
-        aws_access_key_id=os.getenv("aws_access_key_id"),
-        aws_secret_access_key=os.getenv("aws_secret_access_key"),
-        aws_session_token=os.getenv("aws_session_token"))
-    try:
-        response = s3_client.upload_file(file_name, bucket, object_name)
-    except ClientError as e:
-        logging.error(e)
-        return False
-    return True
-
 try:
     while True:
+        print("\nIniciando nova coleta de dados...")
 
         # Cria os Processos Fantasmas
         simular_processos_fantasmas()
+        print("Simulação de processos atualizada")
 
-        # Pega o inicio do While
-        inicio = time.time()
+        # Contador de Registros
+        contador = 1
 
-        while time.time() - 600:
+        # Define o caminho completo do arquivo CSV dentro da pasta criada.
+
+        buffer_csv = StringIO()
+        df_init = pd.DataFrame(columns=header)
+        df_init.to_csv(buffer_csv, index=False)
+
+        print("Buffer CSV inicializado com cabeçalho")
+
+        # Cria o arquivo CSV com apenas o cabeçalho caso ele ainda não exista.
+
+        print("Iniciando ciclo de capturas (10 registros)")
+        while contador <= 10:
             # Início do loop infinito para captura contínua dos dados do sistema:
-
-            
-            # Define o caminho completo do arquivo CSV dentro da pasta criada.
-
-            arquivoCSV = f"{pasta}/M{id_monitor} - {datetime.now().strftime('%d-%m-%Y %H_%M')}.csv"
-
-            if not os.path.exists(arquivoCSV):
-                df_init = pd.DataFrame(columns=header)
-                df_init.to_csv(arquivoCSV, index=False)
-
-            # Cria o arquivo CSV com apenas o cabeçalho caso ele ainda não exista.
 
             mem = psutil.disk_usage('/')
             # Captura informações de uso do disco (total, usado, livre e porcentagem);
@@ -330,7 +291,7 @@ try:
 
             for modulo in modulos:
                 if(modulos_status[modulo] == "Ativo"):
-                    atuais.append(modulos_status[modulo])
+                    atuais.append(modulo)
 
 
             # Aumentando os valores para cada módulo ativo
@@ -338,7 +299,7 @@ try:
             carga = peso_hora[datetime.now().hour] / 12.07
             bytes_sent_per_sec = bytes_sent_per_sec * (1.0 - carga * 0.4)
             bytes_recv_per_sec = bytes_recv_per_sec * (1.0 - carga * 0.4)
-            
+
             n_ativos = len(atuais)
 
             incremento_ram = n_ativos * randint(2, 4)
@@ -372,13 +333,46 @@ try:
             df = pd.DataFrame([linha], columns=header)
 
             # Salva os dados no CSV no modo append (sem sobrescrever o arquivo);
-            df.to_csv(arquivoCSV, mode='a', header=False, index=False, encoding='utf-8')
+            df.to_csv(buffer_csv, mode='a', header=False, index=False)
 
-            # Envia para o S3
-            upload_file(arquivoCSV, os.getenv("bucket"), "raw/" + os.path.basename(arquivoCSV))
+            print(f"Captura {contador} CPU= {cpu:.2f}% RAM= {ram:.2f}% Ativos= {len(atuais)}")
 
             time.sleep(60)
             # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).
+
+            contador += 1
+
+        print("\nFinalizando as 10 capturas, preparando envio\n")
+
+        # Envia para o S3
+        s3_client = boto3.client(
+        's3',
+        aws_access_key_id=os.getenv("aws_access_key_id"),
+        aws_secret_access_key=os.getenv("aws_secret_access_key"),
+        aws_session_token=os.getenv("aws_session_token")
+        )
+
+        nome_arquivo = f"M{id_monitor}_{datetime.now().strftime('%d-%m-%Y_%H_%M')}.csv"
+
+        buffer_csv.seek(0)
+
+        print("Enviando arquivo para o bucket...")
+
+        response = s3_client.put_object(
+            Bucket=os.getenv("bucket"),
+            Key="raw/" + nome_arquivo,
+            Body=buffer_csv.getvalue().encode('utf-8'),
+            ContentType='text/csv'
+        )
+
+        print(f"Upload concluído: {nome_arquivo}")
+
+        print("Iniciando processo ETL...")
+
+        # Chamando a ETL
+        subprocess.run([sys.executable, "ETL.py"], check=True)
+
+        
 
 except KeyboardInterrupt:
     print("Encerrando Monitoramento...")

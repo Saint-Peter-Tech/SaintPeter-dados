@@ -8,6 +8,8 @@ from botocore.exceptions import ClientError
 import logging
 from io import StringIO
 
+print("Iniciando ETL...")
+
 # Importando Bibliotecas Necessárias:
 # pandas as pd = Estrutura e manipulação de dados (DataFrame) e exportação para CSV;
 # mysql.connector = Conexão com Banco de dados para validações;
@@ -28,6 +30,8 @@ buffer_client = StringIO()
 # Carregando as variaveis de ambiente
 load_dotenv()
 
+print("Variáveis de ambiente carregadas")
+
 # Colunas de status dos Monitores
 status_cols = [
     "bpm_status", "pa_status", "spo2_status", "resp_status",
@@ -46,7 +50,12 @@ s3 = boto3.client(
     aws_session_token=os.getenv("aws_session_token")
 )
 
+print("Conectando ao S3...")
+
 # Criando Paginator para ler bucket da S3
+
+print("Buscando arquivos RAW no S3...")
+
 paginator = s3.get_paginator('list_objects_v2')
 registros = []
 
@@ -63,8 +72,11 @@ registros = sorted(registros, key = lambda x: x["conteudo"]["LastModified"], rev
 
 raw = registros[0]["conteudo"]['Body'].read().decode('utf-8')
 
+print("RAW carregado com sucesso")
+
 # Conectando com MYSQL:
 def conectar():
+    print("Conectando ao MySQL...")
     try:
         conn = mysql.connector.connect(
                 host=os.getenv("host"),
@@ -135,6 +147,7 @@ def preparar_raw(df):
 
 # Função para tratar os dados (trusted)
 def trusted(df):
+    print("Processando camada TRUSTED...")
     # Utiliza o preparar_raw para deixar os dados prontos para tratamento
     df = preparar_raw(df)
 
@@ -201,10 +214,13 @@ def trusted(df):
         Body=buffer.getvalue()
     )
 
+    print("Trusted atualizado no S3")
+
     return df_trusted
 
 # Função para deixar os dados para o Cliente
 def client(df, cursor):
+    print("Processando camada Client...")
     # Pega os ultimos 3 registros do trusted
     df_client = df.tail(3)
 
@@ -285,6 +301,8 @@ def client(df, cursor):
 
     s3.put_object(Bucket=bucket, Key='client/client.json', Body=buffer_client.getvalue())
 
+    print("Client atualizado no S3")
+
     return resultado
 
 def main():
@@ -303,10 +321,10 @@ def main():
     total_atual = len(df_trusted)
     total_anterior = ler_controle()
 
+    print(f"Controle -> atual: {total_atual} - anterior: {total_anterior}")
+
     # Criando cliente caso passe na condição
     if total_atual - total_anterior >= 3:
-        print("Executando client...")
-
         # Pegando cursor do MYSQl para poder executar queries
         conn = conectar()
         cursor = conn.cursor()

@@ -277,7 +277,7 @@ try:
             ram = psutil.virtual_memory().percent
             # Captura informações da memória RAM (porcentagem)
 
-            cpu = psutil.cpu_percent(intervalo=1)
+            cpu = psutil.cpu_percent(interval=1)
             # Captura o uso percentual da CPU (intervalo de 1 segundo para média mais precisa);
 
             date = datetime.now().strftime('%d-%m-%Y %H_%M_%S')
@@ -365,3 +365,5 @@ except KeyboardInterrupt:
             proc.kill()
 
     print("Todos os processos finalizados com sucesso!\nPrograma finalizado.")
+
+    

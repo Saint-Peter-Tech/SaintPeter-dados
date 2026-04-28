@@ -225,7 +225,7 @@ ggplot(df_semana_total, aes(x = dia_semana, y = valor, color = tipo, group = tip
   labs(
     title = "Cirurgias Eletivas vs Emergência por Dia da Semana",
     x = "Dia",
-    y = "Porcentagem de Cirurgias %"
+    y = "Porcentagemhttp://127.0.0.1:37975/graphics/601b2f67-7a05-4d52-a5ad-3024f7e51f55.png de Cirurgias %"
   ) +
   theme_minimal()
 
@@ -404,4 +404,30 @@ plot(df_simulacao$modulos_ativos, df_simulacao$ram_percent,
      ylab="RAM %",
      main=paste("RAM X Módulos (correlação =", round(correlacao_ram_mod, 2), ")"))
 abline(modelo_ram, col="red", lwd=2)
+
+#-----------------Módulos ativos Por Hora----------------------------------
+
+modulos <- c("bpm_status","pa_status","spo2_status","resp_status",
+             "temperatura_status","pic_status","pvc_status","ecg_status","etco2_status")
+
+df_simulacao$hora <- as.integer(format(df_simulacao$timestamp, "%H"))
+
+df_mod <- data.frame(
+  hora = df_simulacao$hora,
+  df_simulacao[modulos] =="Ativo"
+)
+
+df_mod <- aggregate(. ~ hora, data = df_mod, mean)
+
+df_mod_qnt <- reshape(df_mod,varying = modulos,
+                       v.names="valor",
+                       timevar = "modulo",
+                       times = modulos,
+                       direction ="long")
+
+ggplot(df_mod_qnt, aes(hora, valor, color = modulo)) +
+  geom_line() +
+  scale_x_continuous(breaks = 0:23) +
+  labs(title = "Módulos ativos por hora", x = "Hora", y = "Volume ativo") +
+  theme_minimal()
 

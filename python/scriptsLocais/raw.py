@@ -9,6 +9,8 @@ from random import randint
 import sys
 import os
 
+random.seed(42)
+
 # Importando Bibliotecas Necessárias:
 # psutil = Captura de Hardware e processos;
 # time = Delay nas capturas para melhor análise e possibilidades;
@@ -17,7 +19,7 @@ import os
 # OS = Funções para checar existência de pastas/arquivos;
 # subprocess = Gerar processos fantasmas para simular modulos;
 # random =  Utilizado da mesma forma que um rnorm para criar padrões.
-# randomint = Gera um random entre intervalos
+# randomint = Gera um random entre intervaloos
 # sys = Sendo usado para pegar o Python que está sendo executado no PC, evitando assim conflitos
 
 
@@ -263,9 +265,9 @@ try:
         inicio = time.time()
 
         # Gera um intervalo aleatorio para troca de módulos
-        interval = randint(300, 600)
+        intervalo = 450
 
-        while time.time() - inicio < interval:
+        while time.time() - inicio < intervalo:
             # Início do loop infinito para captura contínua dos dados do sistema:
 
             mem = psutil.disk_usage('/')
@@ -274,7 +276,7 @@ try:
             ram = psutil.virtual_memory().percent
             # Captura informações da memória RAM (porcentagem)
 
-            cpu = psutil.cpu_percent(interval=1)
+            cpu = psutil.cpu_percent(intervalo=1)
             # Captura o uso percentual da CPU (intervalo de 1 segundo para média mais precisa);
 
             date = datetime.now().strftime('%d-%m-%Y %H_%M_%S')
@@ -318,15 +320,14 @@ try:
             bytes_sent_per_sec = bytes_sent_per_sec * (1.0 - carga * 0.4)
             bytes_recv_per_sec = bytes_recv_per_sec * (1.0 - carga * 0.4)
             for atual in atuais:
-
                 if(cpu < 80):
-                    cpu += randint(3, 8)
+                    cpu += 5
                 else: 
-                    cpu = randint(70, 80)
+                    cpu = 75
                 if(ram < 80):
-                    ram += randint(3, 8)
+                    ram += 5
                 else:
-                    ram = randint(70, 80)
+                    ram = 75
 
             # Cria uma lista com os dados coletados
             linha = [

@@ -108,13 +108,20 @@ while tempo < fim:
 
             minutos_ligada[n] = minutos_ligada[n] + 1
 
+            if hora >= 20 or hora < 4:
+                prob_pic_fatal = min(prob_pic * 1.8, 1)
+                prob_pvc_fatal = min(prob_pvc * 1.6, 1)
+            else:
+                prob_pic_fatal = prob_pic
+                prob_pvc_fatal = prob_pvc
+
             bpm = AtivoOuInativo(prob_bpm, peso)
             pa = AtivoOuInativo(prob_pa, peso)
             spo2 = AtivoOuInativo(prob_spo2,peso)
             resp = AtivoOuInativo(prob_resp,peso)
             temp = AtivoOuInativo(prob_temp,peso)
-            pic = AtivoOuInativo(prob_pic,peso)
-            pvc = AtivoOuInativo(prob_pvc,peso)
+            pic = AtivoOuInativo(prob_pic_fatal,peso)
+            pvc = AtivoOuInativo(prob_pvc_fatal,peso)
             ecg = AtivoOuInativo(prob_ecg,peso)
             etco2 = AtivoOuInativo(prob_etco2,peso)
 

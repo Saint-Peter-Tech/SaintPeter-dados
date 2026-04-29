@@ -73,6 +73,7 @@ modulos = {
     "etco2": ["etco2_module.py"],
 }
 
+
 # Definindo os Módulos que serão capturados:
 # Cada módulo representa um "módulo físico" do monitor multiparamétrico
 # Aqui estamos simulando esses módulos como processos rodando no sistema
@@ -265,7 +266,7 @@ try:
         inicio = time.time()
 
         # Gera um intervalo aleatorio para troca de módulos
-        intervalo = randint(300, 600)
+        intervalo = 120 #randint(300, 600)
 
         while time.time() - inicio < intervalo:
             # Início do loop infinito para captura contínua dos dados do sistema:
@@ -313,21 +314,31 @@ try:
                 if(modulos_status[modulo] == "Ativo"):
                     atuais.append(modulos_status[modulo])
 
+            n_ativos = len(atuais)
+
 
             # Aumentando os valores para cada módulo ativo
 
             carga = peso_hora[datetime.now().hour] / 12.07
             bytes_sent_per_sec = bytes_sent_per_sec * (1.0 - carga * 0.4)
             bytes_recv_per_sec = bytes_recv_per_sec * (1.0 - carga * 0.4)
-            for atual in atuais:
-                if(cpu < 80):
-                    cpu += 5
-                else: 
-                    cpu = 75
-                if(ram < 80):
-                    ram += 5
-                else:
-                    ram = 75
+
+            bytes_sent_per_sec *= 1.0 - (n_ativos * 0.08)
+            bytes_recv_per_sec *= 1.0 - (n_ativos * 0.08)
+
+
+            ram += n_ativos * random.uniform(0.9, 1.5)
+            cpu += n_ativos * random.uniform(2.0,3.5)
+
+            #Freio para não passar muito de 80%
+
+            if ram > 80:
+                passou = ram - 80
+                ram = 80 + passou * 0.2
+
+            if cpu > 80:
+                passou = cpu - 80
+                cpu = 80 + passou * 0.2
 
             # Cria uma lista com os dados coletados
             linha = [
@@ -365,4 +376,3 @@ except KeyboardInterrupt:
 
     print("Todos os processos finalizados com sucesso!\nPrograma finalizado.")
 
-    

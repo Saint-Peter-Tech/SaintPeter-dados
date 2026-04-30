@@ -294,25 +294,30 @@ try:
                     atuais.append(modulo)
 
 
+            n_ativos = len(atuais)
+
             # Aumentando os valores para cada módulo ativo
 
             carga = peso_hora[datetime.now().hour] / 12.07
             bytes_sent_per_sec = bytes_sent_per_sec * (1.0 - carga * 0.4)
             bytes_recv_per_sec = bytes_recv_per_sec * (1.0 - carga * 0.4)
 
-            n_ativos = len(atuais)
+            bytes_sent_per_sec = bytes_sent_per_sec / (1 + n_ativos * 3.0)
+            bytes_recv_per_sec = bytes_recv_per_sec / (1 + n_ativos * 3.0)
 
-            incremento_ram = n_ativos * randint(2, 4)
-            if ram + incremento_ram < 85:
-                ram += incremento_ram
-            else:
-                ram = randint(70,80)
 
-            incremento_cpu = n_ativos * randint(2, 4)
-            if cpu + incremento_cpu <85:
-                cpu += incremento_cpu
-            else:
-                cpu = randint(70, 80)
+            ram += n_ativos * random.uniform(0.7, 1.5)
+            cpu += n_ativos * random.uniform(2.0,3.5)
+
+            #Freio para não passar muito de 80%
+
+            if ram > 80:
+                passou = ram - 80
+                ram = 80 + passou * 0.2
+
+            if cpu > 80:
+                passou = cpu - 80
+                cpu = 80 + passou * 0.2
 
             # Cria uma lista com os dados coletados
             linha = [

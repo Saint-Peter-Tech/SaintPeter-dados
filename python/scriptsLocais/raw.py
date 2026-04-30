@@ -86,7 +86,7 @@ os.makedirs(pasta, exist_ok=True)
 
 
 # ID do Monitor MUDAR SEMPRE!!!  
-id_monitor = 1
+id_monitor = 6
 
 # Cria a pasta caso não exista (evita erro ao salvar arquivo).
 
@@ -266,7 +266,7 @@ try:
         inicio = time.time()
 
         # Gera um intervalo aleatorio para troca de módulos
-        intervalo = 120 #randint(300, 600)
+        intervalo = 1 #randint(300, 600)
 
         while time.time() - inicio < intervalo:
             # Início do loop infinito para captura contínua dos dados do sistema:
@@ -323,11 +323,11 @@ try:
             bytes_sent_per_sec = bytes_sent_per_sec * (1.0 - carga * 0.4)
             bytes_recv_per_sec = bytes_recv_per_sec * (1.0 - carga * 0.4)
 
-            bytes_sent_per_sec *= 1.0 - (n_ativos * 0.08)
-            bytes_recv_per_sec *= 1.0 - (n_ativos * 0.08)
+            bytes_sent_per_sec = bytes_sent_per_sec / (1 + n_ativos * 3.0)
+            bytes_recv_per_sec = bytes_recv_per_sec / (1 + n_ativos * 3.0)
 
 
-            ram += n_ativos * random.uniform(0.9, 1.5)
+            ram += n_ativos * random.uniform(0.7, 1.5)
             cpu += n_ativos * random.uniform(2.0,3.5)
 
             #Freio para não passar muito de 80%
@@ -361,7 +361,7 @@ try:
             # Salva os dados no CSV no modo append (sem sobrescrever o arquivo);
             df.to_csv(arquivoCSV, mode='a', header=False, index=False, encoding='utf-8')
 
-            time.sleep(60)
+            time.sleep(20)
             # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).
 
 except KeyboardInterrupt:

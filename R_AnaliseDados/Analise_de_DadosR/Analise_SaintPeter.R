@@ -225,7 +225,7 @@ ggplot(df_semana_total, aes(x = dia_semana, y = valor, color = tipo, group = tip
   labs(
     title = "Cirurgias Eletivas vs Emergência por Dia da Semana",
     x = "Dia",
-    y = "Porcentagemhttp://127.0.0.1:37975/graphics/601b2f67-7a05-4d52-a5ad-3024f7e51f55.png de Cirurgias %"
+    y = "Porcentagem de Cirurgias %"
   ) +
   theme_minimal()
 
@@ -328,11 +328,54 @@ ggplot(df_peso_hora, aes(x = hora, y = peso_final)) +
 #----------------Analise de Simulação----------------------
 #------------------------------------------------------------
 
-#------------Rede  x Qtd de maq ----------------------------------
-
 df_simulacao <- read.csv("C:/Users/gusta/Desktop/saint_peter/SaintPeter-dados/R_AnaliseDados/Analise_de_DadosR/simulacao.csv")
 
 df_simulacao$timestamp <- as.POSIXct(df_simulacao$timestamp, format="%d-%m-%Y %H_%M_%S")
+
+df_simulacao$modulos_ativos<- 
+  (df_simulacao$bpm_status == "Ativo")+
+  (df_simulacao$pa_status == "Ativo") +
+  (df_simulacao$spo2_status == "Ativo") +
+  (df_simulacao$resp_status == "Ativo")+
+  (df_simulacao$temperatura_status == "Ativo") +
+  (df_simulacao$pic_status == "Ativo") +
+  (df_simulacao$pvc_status == "Ativo") +
+  (df_simulacao$ecg_status == "Ativo") +
+  (df_simulacao$etco2_status == "Ativo")
+
+#----------------Módulos X CPU -------------------
+
+
+correlacao_cpu_mod <- cor(df_simulacao$modulos_ativos,
+                  df_simulacao$cpu_percent)
+
+modelo <- lm(cpu_percent ~ modulos_ativos,
+             data = df_simulacao)
+
+
+plot(df_simulacao$modulos_ativos[df_simulacao$id_monitor == 1], df_simulacao$cpu_percent[df_simulacao$id_monitor == 1],
+     pch=16,
+     col="blue",
+     xlab="Quantidade de módulos ativos",
+     ylab="CPU %",
+     main=paste("CPU x Módulos (correlação =",round(correlacao_cpu_mod,2),")"))
+abline(modelo, col="red", lwd=2)
+
+#----------Módulos X RAM ---------------------------------------
+
+correlacao_ram_mod <- cor(df_simulacao$modulos_ativos, df_simulacao$ram_percent)
+
+modelo_ram <- lm(ram_percent ~ modulos_ativos, data = df_simulacao)
+
+plot(df_simulacao$modulos_ativos, df_simulacao$ram_percent,
+     col="darkgreen",
+     xlab="Quantidade de módulos ativos",
+     ylab="RAM %",
+     main=paste("RAM X Módulos (correlação =", round(correlacao_ram_mod, 2), ")"))
+abline(modelo_ram, col="red", lwd=2)
+
+#------------Rede  x Qtd de maq ----------------------------------
+
 
 df_simulacao$ligada <- ifelse(df_simulacao$cpu_percent > 0, 1, 0)
 
@@ -357,53 +400,12 @@ plot(df_rede$ligada, df_rede$uso_rede,
      pch=16,
      col="pink",
      xlab="Máquinas Ligadas",
-     ylab="Uso médio de rede",
+     ylab="Taxa de transferência (bytes/s)",
      main=paste("Rede X Máquinas (correlação =", round(correlacao,2),")"))
 
 abline(lm(uso_rede ~ ligada, data=df_rede),
        col="red", lwd=2)
 
-#----------------Módulos X CPU -------------------
-
-df_simulacao$modulos_ativos<- 
-  (df_simulacao$bpm_status == "Ativo")+
-  (df_simulacao$pa_status == "Ativo") +
-  (df_simulacao$spo2_status == "Ativo") +
-  (df_simulacao$resp_status == "Ativo")+
-  (df_simulacao$temperatura_status == "Ativo") +
-  (df_simulacao$pic_status == "Ativo") +
-  (df_simulacao$pvc_status == "Ativo") +
-  (df_simulacao$ecg_status == "Ativo") +
-  (df_simulacao$etco2_status == "Ativo")
-
-
-correlacao_cpu_mod <- cor(df_simulacao$modulos_ativos,
-                  df_simulacao$cpu_percent)
-
-modelo <- lm(cpu_percent ~ modulos_ativos,
-             data = df_simulacao)
-
-
-plot(df_simulacao$modulos_ativos, df_simulacao$cpu_percent,
-     pch=16,
-     col="blue",
-     xlab="Quantidade de módulos ativos",
-     ylab="CPU %",
-     main=paste("CPU x Módulos (correlação =",round(correlacao_cpu_mod,2),")"))
-abline(modelo, col="red", lwd=2)
-
-#----------Módulos X RAM ---------------------------------------
-
-correlacao_ram_mod <- cor(df_simulacao$modulos_ativos, df_simulacao$ram_percent)
-
-modelo_ram <- lm(ram_percent ~ modulos_ativos, data = df_simulacao)
-
-plot(df_simulacao$modulos_ativos, df_simulacao$ram_percent,
-     col="darkgreen",
-     xlab="Quantidade de módulos ativos",
-     ylab="RAM %",
-     main=paste("RAM X Módulos (correlação =", round(correlacao_ram_mod, 2), ")"))
-abline(modelo_ram, col="red", lwd=2)
 
 #-----------------Módulos ativos Por Hora----------------------------------
 
@@ -431,3 +433,26 @@ ggplot(df_mod_qnt, aes(hora, valor, color = modulo)) +
   labs(title = "Módulos ativos por hora", x = "Hora", y = "Volume ativo") +
   theme_minimal()
 
+#---------------Ranking CSVs Grupo de CPU---------------------------------------------
+
+df_grupo <- rbind.data.frame(`M5...29.04.2026.10_36(in)`, M1...29.04.2026.10_45,
+                             M6...29.04.2026.10_34, M3...29.04.2026.10_41,
+                             M20...29.04.2026.10_43)
+
+
+medianas <- aggregate(cpu_percent ~ id_monitor,
+                      data = df_grupo,
+                      median)
+
+medianas <- medianas[order(-medianas$cpu_percent), ]
+
+
+df_grupo$id_monitor <- factor(df_grupo$id_monitor,
+                              levels = medianas$id_monitor)
+
+boxplot(cpu_percent ~ id_monitor,
+        data = df_grupo,
+        col = "pink",
+        las = 2,
+        main = "Ranking de Monitores por CPU",
+        ylab = "CPU (%)")

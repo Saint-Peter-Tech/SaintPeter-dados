@@ -1,0 +1,18 @@
+id_monitor,timestamp,cpu_percent,ram_percent,disk_usage_percent,bytes_sent_per_sec,bytes_recv_per_sec,bpm_status,pa_status,spo2_status,resp_status,temperatura_status,pic_status,pvc_status,ecg_status,etco2_status
+2,20-04-2026 17_55_11,31.4,77,71.2,3589.8557415078703,1157.1475062137529,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 17_56_17,33.2,77,71.2,1850.2287986743993,2137.1190057995027,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 17_57_23,24.1,74,71.2,88.58800331400165,86.10256835128418,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 17_58_29,34.3,78,71.2,65.15390223695113,93.55887323943662,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 17_59_35,59.0,79,71.2,20460.633206296603,2949.3236454018224,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 18_00_41,61.7,77,71.1,13977.744821872411,12789.362054681029,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 18_01_47,29.1,79,69.5,352.5990057995029,743.1325600662801,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 18_02_53,27.2,85.4,69.5,37.41010770505385,97.89560894780448,Inativo,Inativo,Inativo,Inativo,Ativo,Inativo,Inativo,Ativo,Ativo
+2,20-04-2026 18_04_00,39.4,81,69.5,454.1657000828501,846.9718309859155,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_05_06,31.2,81,69.5,192.99420049710028,197.5393537696769,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_06_12,33.2,81,69.5,53.14333057166529,682.122618061309,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_07_18,40.0,72,69.5,291.06462303231154,1136.6379453189727,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_08_24,38.5,76,69.5,1801.628831814416,2031.5086992543495,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_09_30,34.3,71,69.5,54.36702568351285,100.34299917149959,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_10_36,35.6,83,69.5,183.02982601491303,162.92626346313173,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_11_42,33.7,78,69.5,0.0,60.835128417564206,Ativo,Inativo,Ativo,Ativo,Ativo,Inativo,Inativo,Inativo,Ativo
+2,20-04-2026 18_12_49,41.4,82,69.5,62.233637116818564,110.48218724109363,Ativo,Inativo,Ativo,Inativo,Ativo,Inativo,Inativo,Ativo,Inativo

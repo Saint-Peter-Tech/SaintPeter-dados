@@ -240,7 +240,7 @@ def trusted(df):
 
 # Função para deixar os dados para o Cliente
 def client(df, cursor):
-    print("Processando camada Client...")
+    print("Processando camada Client...\n")
     # Pega os ultimos 3 registros do trusted
     df_client = df.tail(3)
 
@@ -308,60 +308,128 @@ def client(df, cursor):
         else:
             statusgeral = "OK"
 
-        # Cria a base do json de resultado
+        # Cria a base do json de resultado juntando cada dado de forma concisa
         resultado.append({
-            "idmonitor": id_monitor,
-            "horarioInicio": horarioInicio,
-            "HorarioFim": horarioFim,
-            "intervalomin": intervalo,
-            "picocpuporcentagem": cpu,
-            "picoramporcentagem": ram,
-            "picodiscoporcentagem": disk,
-            "mincpuporcentagem": mincpu,
-            "minramporcentagem": minram,
-            "ultimacapturacpu": ultcpu,
-            "ultimacapturaram": ultram,
-            "minredeMBS": minrede,
-            "ultimacapturarede": ultrede,
-            "redeMBS": rede,
-            "statusgeral": statusgeral,
-            "statusram": statusram,
-            "statuscpu": statuscpu,
-            "statusdisco": statusdisco,
-            "statusrede": statusrede,
-            "monitorativo": monitor_ativo,
-            "qtdmodulosativos": qtd_modulos_ativos,
-            "kpi_rede_zero": kpi_rede_zero,
-            "modulos": {
+
+        "monitor": {
+            "id": id_monitor,
+            "ativo": monitor_ativo,
+            "statusGeral": statusgeral,
+            "quantidadeModulosAtivos": qtd_modulos_ativos
+        },
+
+        "periodo": {
+            "inicio": horarioInicio,
+            "fim": horarioFim,
+            "intervaloMinutos": intervalo
+        },
+
+        "cpu": {
+            "picoPorcentagem": cpu,
+            "minimoPorcentagem": mincpu,
+            "ultimaCaptura": ultcpu,
+            "status": statuscpu
+        },
+
+        "ram": {
+            "picoPorcentagem": ram,
+            "minimoPorcentagem": minram,
+            "ultimaCaptura": ultram,
+            "status": statusram
+        },
+
+        "disco": {
+            "picoPorcentagem": disk,
+            "status": statusdisco
+        },
+
+        "rede": {
+            "picoMbs": rede,
+            "minimoMbs": minrede,
+            "ultimaCaptura": ultrede,
+            "status": statusrede,
+            "quedasRede": kpi_rede_zero
+        },
+
+        "modulos": {
             col: row[col] for col in status_cols
-            },
+        }
 
-        })
+    })
 
-    # Vai para o começo do Buffer e Limpa
-    buffer_client.seek(0)
-    buffer_client.truncate(0)
+    # Criando os 6 JSONs vazios
+    arquivos_client = {
+        "client/menegaldo.json": {
 
-    # Cria o Json
-    json.dump(resultado, buffer_client, indent=4, ensure_ascii=False)
+            # Esse é seu JSON!
 
-    # Baixando o Client do S3 caso exista para incrementar e enviar
-    try:
-        response = s3.get_object(Bucket=bucket, Key='client/client.json')
-        conteudo = response['Body'].read().decode('utf-8')
-        df_existente = pd.read_json(StringIO(conteudo))
-        json_antigo = json.loads(conteudo)
-        json_novo = json.loads(buffer_client.getvalue())
-        jsonFinal = json.dumps(json_antigo + json_novo, indent=4, ensure_ascii=False)
+        },
+        "client/seiti.json": {
 
-    except s3.exceptions.NoSuchKey:
-            # Primeira execução
-            jsonFinal = buffer_client.getvalue()
+            # Esse é seu JSON!
 
+        },
+        "client/gustavo.json": {
 
-    s3.put_object(Bucket=bucket, Key='client/client.json', Body=str(jsonFinal))
+            # Esse é seu JSON!
 
-    print("Client atualizado no S3")
+        },
+        "client/maria.json": {
+
+            # Esse é seu JSON!
+
+        },
+        "client/pedro.json": {
+            # EXEMPLO JSON:
+            "monitoramento": resultado
+        },
+        "client/philipi.json": {
+
+            # Esse é seu JSON!
+
+        }
+    }
+
+    # Enviando todos para o S3
+    for caminho, conteudo in arquivos_client.items():
+
+        try:
+            # tenta baixar o JSON antigo
+            response = s3.get_object(
+                Bucket=bucket,
+                Key=caminho
+            )
+
+            conteudo_antigo = response['Body'].read().decode('utf-8')
+
+            json_antigo = json.loads(conteudo_antigo)
+
+        except s3.exceptions.NoSuchKey:
+            # caso não exista ainda
+            json_antigo = {
+                "monitoramento": []
+            }
+
+        # adiciona os novos dados
+        json_antigo["monitoramento"].extend(
+            conteudo.get("monitoramento", [])
+        )
+
+        # transforma em string
+        json_final = json.dumps(
+            json_antigo,
+            indent=4,
+            ensure_ascii=False
+        )
+
+        # envia atualizado
+        s3.put_object(
+            Bucket=bucket,
+            Key=caminho,
+            Body=json_final
+        )
+
+        print(f"{caminho} atualizado com sucesso")
 
     return resultado
 

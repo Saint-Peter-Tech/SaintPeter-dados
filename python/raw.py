@@ -12,6 +12,8 @@ import sys
 import logging
 from dotenv import load_dotenv
 from io import StringIO
+import mysql.connector
+from getpass import getpass
 
 # Importando Bibliotecas Necessárias:
 # psutil = Captura de Hardware e processos;
@@ -24,8 +26,15 @@ from io import StringIO
 # random =  Utilizado da mesma forma que um rnorm para criar padrões;
 # randomint = Gera um random entre intervalos;
 # sys = Sendo usado para pegar o Python que está sendo executado no PC, evitando assim conflitos;
-# logging = Debug e registrar erros.
+# logging = Debug e registrar erros;
+# dotenv = Salvar credenciais em um .env para maior segurança e melhor manipulação das mesmas entre arquivos;
+# StringIO = Salvar arquivos em buffer sem criar pasta local, para melhor manipulação em AWS;
+# MYSQL.connector = Conexão com Banco de Dados (MySQL);
+# GetPass = Salvar senha de forma segura.
 
+# Função para limpar o Terminal de forma dinâmica entre Windows e Linux:
+def limpar_terminal():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 header = [
     "id_monitor",
@@ -81,12 +90,131 @@ modulos = {
 # Cada módulo representa um "módulo físico" do monitor multiparamétrico;
 # Aqui estamos simulando esses módulos como processos rodando no sistema.
 
-
-# ID do Monitor MUDAR SEMPRE!!!  
-id_monitor = 1
-
 # Carregando dot env para acessar credenciais depois.
 load_dotenv()
+
+# Conexão com Banco de dados
+conexao = mysql.connector.connect(
+   host=os.getenv("host"),
+    user=os.getenv("user"),
+    password=os.getenv("password"),
+    database=os.getenv("database")
+)
+
+# Cursor para executar Queryes
+cursor = conexao.cursor(dictionary=True)
+
+# Começando os Prints para pedir email e senha do usuario do Script de Captura
+limpar_terminal()
+
+print("=" * 60)
+print("     SAINT PETER TECHNOLOGY")
+print("        SISTEMA DE CAPTURA")
+print("=" * 60)
+
+print("\nBem-vindo ao sistema de monitoramento hospitalar.\n")
+
+# Input de email e senha
+email = input("Email: ")
+senha = getpass("Senha: ")
+
+# Query para buscar se o usuario existe
+query_usuario = """
+SELECT *
+FROM usuarios
+WHERE email = %s
+AND senha = %s
+"""
+
+# Executando Query
+cursor.execute(query_usuario, (email, senha))
+
+# Pegando resultado da Query
+usuario = cursor.fetchone()
+
+# Checando se o usuario existe e caso não exista finalizando.
+if not usuario:
+    print("Usuário não encontrado!")
+    exit()
+
+# Recebendo usuario logado
+print(f"\nLogin realizado com sucesso.")
+print(f"Usuário: {usuario['nome_usuario']}")
+
+# Dando select para retornar os monitores disponiveis baseado no usuario
+query_monitores = """
+SELECT 
+    m.id_monitor,
+    m.status_monitor,
+    u.nome_unidade,
+    h.nome_hospital
+FROM monitores m
+JOIN unidades u ON m.fk_unidade = u.id_unidade
+JOIN hospitais h ON u.fk_hospital = h.id_hospital
+WHERE m.fk_empresa = %s
+"""
+
+# Cursor passando o fk_empresa
+cursor.execute(query_monitores, (usuario['fk_empresa'],))
+
+# Resultado do cursor
+monitores = cursor.fetchall()
+
+if not monitores:
+    print("Nenhum monitor encontrado.")
+    exit()
+
+print("\nMONITORES DISPONÍVEIS")
+
+for i, monitor in enumerate(reversed(monitores), start=1):
+    print(
+        f"[{i}] "
+        f"Monitor: {monitor['id_monitor']}  |  "
+        f"Hospital: {monitor['nome_hospital']}  |  "
+        f"Unidade: {monitor['nome_unidade']}  |  "
+        f"Status: {monitor['status_monitor']}"
+    )
+
+try:
+    opcao = int(input("\nSelecione o monitor: "))
+
+    if opcao < 1 or opcao > len(monitores):
+        print("Monitor inválido.")
+        exit()
+
+except ValueError:
+    print("Digite apenas números.")
+    exit()
+
+monitor_escolhido = monitores[opcao - 1]
+
+id_monitor = monitor_escolhido['id_monitor']
+
+print(f"\nMonitor selecionado com sucesso.")
+print(f"ID Monitor: {id_monitor}")
+
+query_componentes = """
+SELECT
+    c.nome_componente,
+    c.comando_psutil
+FROM componente_monitor cm
+JOIN componentes c
+    ON cm.fk_componente = c.id_componente
+WHERE cm.fk_monitor = %s
+"""
+
+cursor.execute(query_componentes, (id_monitor,))
+
+componentes_monitor = cursor.fetchall()
+
+query_update = """
+UPDATE monitores
+SET status_monitor = 'Ativo'
+WHERE id_monitor = %s
+"""
+cursor.execute(query_update, (id_monitor,))
+conexao.commit()
+
 
 # Criando apra guardar processos fantasmas e ter um controle melhor deles.
 processos_ativos = {}
@@ -225,6 +353,33 @@ def verificar_modulos():
 
     return status_modulos
 
+def coletar_componentes(componentes):
+    dados = {}
+
+    for componente in componentes:
+        nome = componente['nome_componente']
+        comando = componente['comando_psutil']
+
+        if not comando:
+            continue
+
+        try:
+            resultado = eval(f"psutil.{comando}")
+
+            if nome == "Disco":
+                dados["disk_usage_percent"] = resultado.percent
+
+            elif nome == "CPU":
+                dados["cpu_percent"] = resultado
+
+            elif nome == "RAM":
+                dados["ram_percent"] = resultado
+
+        except Exception as e:
+            print(f"Erro ao coletar {nome}: {e}")
+
+    return dados
+
 try:
     while True:
         print("\nIniciando nova coleta de dados...")
@@ -242,22 +397,19 @@ try:
         df_init = pd.DataFrame(columns=header)
         df_init.to_csv(buffer_csv, index=False)
 
-        print("Buffer CSV inicializado com cabeçalho")
+        print("Buffer CSV inicializado com cabeçalho\n")
 
         # Cria o arquivo CSV com apenas o cabeçalho caso ele ainda não exista.
 
-        print("Iniciando ciclo de capturas (10 registros)\n")
+        print("Iniciando ciclo de capturas (10 registros): \n")
         while contador <= 10:
             # Início do loop infinito para captura contínua dos dados do sistema:
 
-            mem = psutil.disk_usage('/')
-            # Captura informações de uso do disco (total, usado, livre e porcentagem);
+            dados_componentes = coletar_componentes(componentes_monitor)
 
-            ram = psutil.virtual_memory().percent
-            # Captura informações da memória RAM (porcentagem)
-
-            cpu = psutil.cpu_percent(interval=1)
-            # Captura o uso percentual da CPU (intervalo de 1 segundo para média mais precisa);
+            cpu = dados_componentes.get("cpu_percent", 0)
+            ram = dados_componentes.get("ram_percent", 0)
+            disk = dados_componentes.get("disk_usage_percent", 0)
 
             date = datetime.now().strftime('%d-%m-%Y %H_%M_%S')
             # Captura o timestamp atual da coleta formatado;
@@ -323,11 +475,11 @@ try:
             linha = [
                 id_monitor,
                 date,
-                cpu,
-                ram,
-                mem.percent,
-                bytes_sent_per_sec,
-                bytes_recv_per_sec,
+                round(cpu, 2),
+                round(ram, 2),
+                round(disk, 2),
+                round(bytes_sent_per_sec, 2),
+                round(bytes_recv_per_sec, 2),
             ]
 
             # Adiciona o status dos módulos na linha
@@ -342,9 +494,33 @@ try:
 
             redeTotal = bytes_sent_per_sec + bytes_recv_per_sec
 
-            print(f"Captura {contador} CPU = {cpu:.2f}% | RAM = {ram:.2f}% | DISK = {mem.percent:.2f}% | REDE = {redeTotal:.2f}kbps | Ativos = {len(atuais)}")
+            limpar_terminal()
 
-            time.sleep(60)
+            print("=" * 60)
+            print("      SAINT PETER TECHNOLOGY - MONITORAMENTO")
+            print("=" * 60)
+
+            print(f"Monitor: {id_monitor}")
+            print(f"Captura: {contador}/10")
+            print(f"Horário: {date}")
+
+            print("-" * 60)
+
+            print(f"CPU        : {cpu:.2f}%")
+            print(f"RAM        : {ram:.2f}%")
+            print(f"DISCO      : {disk:.2f}%")
+            print(f"BROADBAND  : {redeTotal:.2f} mb/s")
+
+            print("-" * 60)
+
+            print("MÓDULOS ATIVOS:")
+
+            for modulo in atuais:
+                print(f"  ✓ {modulo.upper()}")
+
+            print("=" * 60)
+
+            time.sleep(1)
             # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).
 
             contador += 1
@@ -381,8 +557,16 @@ try:
 
         
 
-except KeyboardInterrupt:
-    print("Encerrando Monitoramento...")
+except Exception as e:
+    print(f"Erro no sistema: {e}")
+finally:
+    query_update = """
+    UPDATE monitores
+    SET status_monitor = 'Inativo'
+    WHERE id_monitor = %s
+    """
+    cursor.execute(query_update, (id_monitor,))
+    conexao.commit()
     
     for modulo, proc in processos_ativos.items():
         try:
@@ -391,4 +575,7 @@ except KeyboardInterrupt:
         except:
             proc.kill()
 
-    print("Todos os processos finalizados com sucesso!\nPrograma finalizado.")
+    cursor.close()
+    conexao.close()
+
+    print("Sistema encerrado.")

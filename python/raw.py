@@ -147,10 +147,12 @@ SELECT
     m.id_monitor,
     m.status_monitor,
     u.nome_unidade,
-    h.nome_hospital
+    h.nome_hospital,
+    mm.nome
 FROM monitores m
 JOIN unidades u ON m.fk_unidade = u.id_unidade
 JOIN hospitais h ON u.fk_hospital = h.id_hospital
+JOIN modelos mm ON m.fk_modelo = mm.id_modelo
 WHERE m.fk_empresa = %s
 """
 
@@ -166,13 +168,14 @@ if not monitores:
 
 print("\nMONITORES DISPONÍVEIS")
 
-for i, monitor in enumerate(reversed(monitores), start=1):
+for i, monitor in enumerate((monitores), start=1):
     print(
-        f"[{i}] "
+        f"[{i}] - "
         f"Monitor: {monitor['id_monitor']}  |  "
         f"Hospital: {monitor['nome_hospital']}  |  "
         f"Unidade: {monitor['nome_unidade']}  |  "
-        f"Status: {monitor['status_monitor']}"
+        f"Modelo: {monitor['nome']}  |  "
+        f"Status: {monitor['status_monitor']}" 
     )
 
 try:

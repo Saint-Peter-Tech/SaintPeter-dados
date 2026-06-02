@@ -73,6 +73,7 @@ def conectar():
             user=os.getenv("user"),
             password=os.getenv("password"),
             database=os.getenv("database"),
+            port=os.getenv("port")
         )
         if conn.is_connected():
             print("Conectado ao SQL com Sucesso")
@@ -178,50 +179,24 @@ def buscar_hospitais_5alertas(cursor, df, id_empresa, inicio, fim, minimo=5):
         """,
         (id_empresa,),
     )
-    monitor_para_hospital = {}
+    monitores_por_hospital = {}
     nome_hospital = {}
     for id_monitor, id_hospital, nome in cursor.fetchall():
-        monitor_para_hospital[id_monitor] = id_hospital
+        monitores_por_hospital.setdefault(id_hospital, []).append(id_monitor)
         nome_hospital[id_hospital] = nome
 
-    cursor.execute(
-        """
-        SELECT cm.fk_monitor, c.nome_componente, cm.limite
-        FROM componente_monitor cm
-        JOIN componentes c ON cm.fk_componente = c.id_componente
-        JOIN monitores m   ON cm.fk_monitor = m.id_monitor
-        WHERE m.fk_empresa = %s
-        """,
-        (id_empresa,),
-    )
-    limites_por_monitor = {}
-    for fk_monitor, nome_comp, limite in cursor.fetchall():
-        limites_por_monitor.setdefault(fk_monitor, {})[nome_comp.lower()] = float(limite)
+    limites_por_monitor = carregar_limites_por_monitor(cursor, id_empresa)
 
-    df_janela = df[(df["timestamp"] >= inicio) & (df["timestamp"] < fim)]
-
-    mapa = {
-        "cpu_percent":  ("cpu",         "cpu"),
-        "ram_percent":  ("ram",         "ram"),
-        "disk_percent": ("disco_usado", "disco"),
-        "banda_larga":  ("rede",        "rede"),
-    }
-
-    alertas_por_hospital = {}
-    for _, row in df_janela.iterrows():
-        id_hospital = monitor_para_hospital.get(int(row["id_monitor"]))
-        if id_hospital is None:
-            continue
-        limites = limites_por_monitor.get(int(row["id_monitor"]), {})
-        for coluna, (chave_limite, tipo) in mapa.items():
-            if status(row[coluna], limites.get(chave_limite), tipo) in ("Alerta", "Crítico"):
-                alertas_por_hospital[id_hospital] = alertas_por_hospital.get(id_hospital, 0) + 1
-
-    resultado = [
-        {"id_hospital": h, "nome_hospital": nome_hospital.get(h, "Desconhecido"), "qtdAlertas": q}
-        for h, q in alertas_por_hospital.items()
-        if q > minimo
-    ]
+    # escopo = monitores do hospital | janela = (inicio, fim) | cálculo = contar_alertas
+    resultado = []
+    for id_hospital, monitores in monitores_por_hospital.items():
+        r = contar_alertas(df, inicio, fim, limites_por_monitor, monitores)
+        if r["total"] > minimo:
+            resultado.append({
+                "id_hospital": id_hospital,
+                "nome_hospital": nome_hospital.get(id_hospital, "Desconhecido"),
+                "qtdAlertas": r["total"],
+            })
     resultado.sort(key=lambda x: x["qtdAlertas"], reverse=True)
 
     return resultado, len(resultado)
@@ -286,8 +261,8 @@ def heatmap_quedas(cursor, df_hist, id_empresa, dias=30, limite_queda=0.01):
 
 def barras_alertas_semana(cursor, df_hist, id_empresa):
     """
-    Alertas (status == "Alerta") por semana do mês corrente, por unidade.
-    Chave "0" = todas as unidades.
+    Alertas (Alerta + Crítico) por semana do mês corrente, por unidade.
+    Chave "0" = todas as unidades. Usa contar_alertas por (unidade x semana).
     """
     cursor.execute(
         """
@@ -299,67 +274,41 @@ def barras_alertas_semana(cursor, df_hist, id_empresa):
         """,
         (id_empresa,),
     )
-    monitor_para_unidade, nome_unidade = {}, {}
+    monitores_por_unidade, nome_unidade = {}, {}
     for id_monitor, id_unidade, nome in cursor.fetchall():
-        monitor_para_unidade[id_monitor] = id_unidade
+        monitores_por_unidade.setdefault(id_unidade, []).append(id_monitor)
         nome_unidade[id_unidade] = nome
 
-    cursor.execute(
-        """
-        SELECT cm.fk_monitor, c.nome_componente, cm.limite
-        FROM componente_monitor cm
-        JOIN componentes c ON cm.fk_componente = c.id_componente
-        JOIN monitores m   ON cm.fk_monitor = m.id_monitor
-        WHERE m.fk_empresa = %s
-        """,
-        (id_empresa,),
-    )
-    limites_por_monitor = {}
-    for fk_monitor, nome_comp, limite in cursor.fetchall():
-        limites_por_monitor.setdefault(fk_monitor, {})[nome_comp.lower()] = float(limite)
-
-    mapa = {
-        "cpu_percent":  ("cpu",         "cpu"),
-        "ram_percent":  ("ram",         "ram"),
-        "disk_percent": ("disco_usado", "disco"),
-        "banda_larga":  ("rede",        "rede"),
-    }
+    limites_por_monitor = carregar_limites_por_monitor(cursor, id_empresa)
 
     agora = datetime.now()
-    df_mes = df_hist[
-        (df_hist["timestamp"].dt.year == agora.year)
-        & (df_hist["timestamp"].dt.month == agora.month)
-    ]
+    ultimo_dia = calendar.monthrange(agora.year, agora.month)[1]
+    n_semanas = (ultimo_dia - 1) // 7 + 1
 
-    n_semanas = (calendar.monthrange(agora.year, agora.month)[1] - 1) // 7 + 1
-    alertas = {0: {}}
-    for uid in nome_unidade:
-        alertas[uid] = {}
+    # janelas [inicio, fim) de cada semana do mês (mesma regra (dia-1)//7)
+    janelas = []
+    for s in range(1, n_semanas + 1):
+        dia_ini = (s - 1) * 7 + 1
+        dia_fim = min(s * 7, ultimo_dia)
+        inicio = datetime(agora.year, agora.month, dia_ini)
+        fim = datetime(agora.year, agora.month, dia_fim) + timedelta(days=1)
+        janelas.append((s, inicio, fim))
 
-    for _, row in df_mes.iterrows():
-        uid = monitor_para_unidade.get(int(row["id_monitor"]))
-        if uid is None:
-            continue
-        limites = limites_por_monitor.get(int(row["id_monitor"]), {})
-        semana = (row["timestamp"].day - 1) // 7 + 1
-
-        qtd = 0
-        for coluna, (chave_limite, tipo) in mapa.items():
-            if status(row[coluna], limites.get(chave_limite), tipo) in ("Alerta", "Crítico"):
-                qtd += 1
-        if qtd:
-            alertas[uid][semana] = alertas[uid].get(semana, 0) + qtd
-            alertas[0][semana]   = alertas[0].get(semana, 0) + qtd
+    todos_monitores = [m for ms in monitores_por_unidade.values() for m in ms]
 
     resultado = {}
-    for uid, por_semana in alertas.items():
+
+    # "0" = todas as unidades | cada unidade = seu próprio escopo | janela = a semana
+    for uid in [0] + list(monitores_por_unidade.keys()):
+        monitores = todos_monitores if uid == 0 else monitores_por_unidade[uid]
+        semanas = []
+        for s, inicio, fim in janelas:
+            total = contar_alertas(df_hist, inicio, fim, limites_por_monitor, monitores)["total"]
+            semanas.append({"semana": s, "label": f"Semana {s}", "alertas": total})
         resultado[str(uid)] = {
             "nome": "Todas as unidades" if uid == 0 else nome_unidade.get(uid, "Desconhecida"),
             "mes": agora.strftime("%Y-%m"),
-            "semanas": [
-                {"semana": s, "label": f"Semana {s}", "alertas": por_semana.get(s, 0)}
-                for s in range(1, n_semanas + 1)
-            ],
+            "semanas": semanas,
         }
     return resultado
 
@@ -531,6 +480,96 @@ def status(valor, limite, componente):
     return "OK"
 
 
+def carregar_limites_por_monitor(cursor, id_empresa):
+    """
+    Monta {id_monitor: {"cpu": x, "ram": y, "disco_usado": z, "rede": w}}
+    para todos os monitores de uma empresa. Use uma vez e reaproveite.
+    """
+    cursor.execute(
+        """
+        SELECT cm.fk_monitor, c.nome_componente, cm.limite
+        FROM componente_monitor cm
+        JOIN componentes c ON cm.fk_componente = c.id_componente
+        JOIN monitores m   ON cm.fk_monitor = m.id_monitor
+        WHERE m.fk_empresa = %s
+        """,
+        (id_empresa,),
+    )
+    limites_por_monitor = {}
+    for fk_monitor, nome_comp, limite in cursor.fetchall():
+        limites_por_monitor.setdefault(fk_monitor, {})[nome_comp.lower()] = float(limite)
+    return limites_por_monitor
+
+
+def contar_alertas(df, inicio, fim, limites_por_monitor, monitores=None):
+    """
+    Cálculo PADRÃO de alertas, pra todos os integrantes usarem.
+
+    Regra única: 1 ocorrência = 1 (linha × componente) cujo status seja
+    "Alerta" OU "Crítico". Cada captura pode somar até 4 (cpu, ram, disco, rede).
+
+    Cada um passa o SEU escopo e o SEU intervalo:
+      - df:                 o DataFrame que você já usa (a fonte é sua).
+      - inicio, fim:        sua janela de tempo. Conta em [inicio, fim).
+      - limites_por_monitor: dict {id_monitor: {"cpu":..,"ram":..,"disco_usado":..,"rede":..}}.
+      - monitores:          conjunto/lista de id_monitor do seu escopo.
+                            Se None, conta todos os monitores presentes no df.
+
+    Retorna:
+      {
+        "total":    int,                # alertas + criticos
+        "alertas":  int,                # só "Alerta"
+        "criticos": int,                # só "Crítico"
+        "por_componente": {
+            "cpu":   {"alerta": int, "critico": int},
+            "ram":   {"alerta": int, "critico": int},
+            "disco": {"alerta": int, "critico": int},
+            "rede":  {"alerta": int, "critico": int},
+        },
+      }
+    """
+    df_janela = df[(df["timestamp"] >= inicio) & (df["timestamp"] < fim)]
+
+    mapa = {
+        "cpu_percent":  ("cpu",         "cpu"),
+        "ram_percent":  ("ram",         "ram"),
+        "disk_percent": ("disco_usado", "disco"),
+        "banda_larga":  ("rede",        "rede"),
+    }
+
+    if monitores is not None:
+        monitores = set(int(m) for m in monitores)
+
+    por_componente = {
+        "cpu":   {"alerta": 0, "critico": 0},
+        "ram":   {"alerta": 0, "critico": 0},
+        "disco": {"alerta": 0, "critico": 0},
+        "rede":  {"alerta": 0, "critico": 0},
+    }
+
+    for _, row in df_janela.iterrows():
+        m = int(row["id_monitor"])
+        if monitores is not None and m not in monitores:
+            continue
+        limites = limites_por_monitor.get(m, {})
+        for coluna, (chave_limite, tipo) in mapa.items():
+            s = status(row[coluna], limites.get(chave_limite), tipo)
+            if s == "Alerta":
+                por_componente[tipo]["alerta"] += 1
+            elif s == "Crítico":
+                por_componente[tipo]["critico"] += 1
+
+    alertas  = sum(c["alerta"]  for c in por_componente.values())
+    criticos = sum(c["critico"] for c in por_componente.values())
+
+    return {
+        "total": alertas + criticos,
+        "alertas": alertas,
+        "criticos": criticos,
+        "por_componente": por_componente,
+    }
+
+
 def trusted(df):
     print("Processando camada TRUSTED...")
 
@@ -653,6 +692,9 @@ def client(df, cursor):
     limite_disk = limites.get("disco_usado")
     limite_rede = limites.get("rede")
 
+    # limites de todos os monitores da empresa (usado pela contar_alertas em todas as dashes)
+    limites_por_monitor = carregar_limites_por_monitor(cursor, id_empresa)
+
     statuscpu = status(cpu, limite_cpu, "cpu")
     statusram = status(ram, limite_ram, "ram")
     statusdisco = status(disk_percent, limite_disk, "disco")
@@ -771,37 +813,18 @@ def client(df, cursor):
 
     capturasTotais = len(df_client)
 
-    alertasCpu = int(
-        (
-            df_client["cpu_percent"].apply(lambda x: status(x, limite_cpu, "cpu"))
-            == "Alerta"
-        ).sum()
-    )
-    alertasRam = int(
-        (
-            df_client["ram_percent"].apply(lambda x: status(x, limite_ram, "ram"))
-            == "Alerta"
-        ).sum()
-    )
-    alertasRede = int(
-        (
-            df_client["banda_larga"].apply(lambda x: status(x, limite_rede, "rede"))
-            == "Alerta"
-        ).sum()
-    )
+    # === padronizado: contar_alertas no escopo do monitor, janela = as capturas do df_client ===
+    _ini_dc = df_client["timestamp"].min()
+    _fim_dc = df_client["timestamp"].max() + timedelta(seconds=1)
+    _r_modelo = contar_alertas(df_client, _ini_dc, _fim_dc, limites_por_monitor, [id_monitor])
 
-    criticosCPU = (
-        df_client["cpu_percent"].apply(lambda x: status(x, limite_cpu, "cpu"))
-        == "Crítico"
-    ).sum()
-    criticosRAM = (
-        df_client["ram_percent"].apply(lambda x: status(x, limite_ram, "ram"))
-        == "Crítico"
-    ).sum()
-    criticosRede = (
-        df_client["banda_larga"].apply(lambda x: status(x, limite_rede, "rede"))
-        == "Crítico"
-    ).sum()
+    alertasCpu  = _r_modelo["por_componente"]["cpu"]["alerta"]
+    alertasRam  = _r_modelo["por_componente"]["ram"]["alerta"]
+    alertasRede = _r_modelo["por_componente"]["rede"]["alerta"]
+
+    criticosCPU  = _r_modelo["por_componente"]["cpu"]["critico"]
+    criticosRAM  = _r_modelo["por_componente"]["ram"]["critico"]
+    criticosRede = _r_modelo["por_componente"]["rede"]["critico"]
 
     status_cpu = df_client["cpu_percent"].apply(
         lambda x: status(x, limite_cpu, "cpu")
@@ -1273,49 +1296,21 @@ def client(df, cursor):
     ultimaSemana = dataAtual - timedelta(days=7)
     df_semana = df_client[df_client["timestamp"] >= ultimaSemana].copy()
 
-    alertasCpu = int(
-        (
-            df_semana["cpu_percent"].apply(lambda x: status(x, limite_cpu, "cpu"))
-            == "Alerta"
-        ).sum()
-    )
-    alertasRam = int(
-        (
-            df_semana["ram_percent"].apply(lambda x: status(x, limite_ram, "ram"))
-            == "Alerta"
-        ).sum()
-    )
-    alertasDisco = int(
-        (
-            df_semana["disk_percent"].apply(lambda x: status(x, limite_disk, "disco"))
-            == "Alerta"
-        ).sum()
-    )
-    alertasRede = int(
-        (
-            df_semana["banda_larga"].apply(lambda x: status(x, limite_rede, "rede"))
-            == "Alerta"
-        ).sum()
+    # === padronizado: contar_alertas no escopo do monitor, janela = últimos 7 dias ===
+    _r_hosp = contar_alertas(
+        df_client, ultimaSemana, dataAtual + timedelta(seconds=1),
+        limites_por_monitor, [id_monitor],
     )
 
-    # A função lambda é para: a cada x valor capturado, se for do status Alerta, gere um alerta comum
+    alertasCpu   = _r_hosp["por_componente"]["cpu"]["alerta"]
+    alertasRam   = _r_hosp["por_componente"]["ram"]["alerta"]
+    alertasDisco = _r_hosp["por_componente"]["disco"]["alerta"]
+    alertasRede  = _r_hosp["por_componente"]["rede"]["alerta"]
 
-    criticosCPU = (
-        df_semana["cpu_percent"].apply(lambda x: status(x, limite_cpu, "cpu"))
-        == "Crítico"
-    ).sum()
-    criticosRAM = (
-        df_semana["ram_percent"].apply(lambda x: status(x, limite_ram, "ram"))
-        == "Crítico"
-    ).sum()
-    criticosDisco = (
-        df_semana["disk_percent"].apply(lambda x: status(x, limite_disk, "disco"))
-        == "Crítico"
-    ).sum()
-    criticosRede = (
-        df_semana["banda_larga"].apply(lambda x: status(x, limite_rede, "rede"))
-        == "Crítico"
-    ).sum()
+    criticosCPU   = _r_hosp["por_componente"]["cpu"]["critico"]
+    criticosRAM   = _r_hosp["por_componente"]["ram"]["critico"]
+    criticosDisco = _r_hosp["por_componente"]["disco"]["critico"]
+    criticosRede  = _r_hosp["por_componente"]["rede"]["critico"]
     criticos = int(criticosCPU + criticosRAM + criticosDisco + criticosRede)
 
     # Agora para os críticos, para cada valor capturado, se for acima de 20% do limite se categoriza como crítico
@@ -1679,29 +1674,22 @@ def client(df, cursor):
     ########################################### Dash Maria:
     caminhoJsonMonitor = f"{caminho_monitor}"
 
-    alertasCpu = 0
-    alertasRam = 0
-    alertasDisco = 0
-    alertasRede = 0
-
     usoDiscoPercent = diskUsed * 100 / diskTotal
     usoDiscoPercentForm = round(usoDiscoPercent, 2)
 
-    if df_client["cpu_percent"].iloc[-1] > limite_cpu:
-        alertasCpu += 1
+    # === padronizado: contar_alertas em TODAS as capturas do df_client (escopo = monitor) ===
+    _ini_m = df_client["timestamp"].min()
+    _fim_m = df_client["timestamp"].max() + timedelta(seconds=1)
+    _r_monitor = contar_alertas(
+        df_client, _ini_m, _fim_m,
+        limites_por_monitor, [id_monitor],
+    )
 
-    if df_client["ram_percent"].iloc[-1] > limite_ram:
-        alertasRam += 1
-
-    if rede > limite_rede:
-        alertasRede += 1
-
-    if usoDiscoPercent > limite_disk:
-        alertasDisco += 1
-        
-    if rede <= 0:
-        alertasRede += 1
-    totalAlertas = alertasCpu + alertasRam + alertasDisco + alertasRede
+    alertasCpu   = _r_monitor["por_componente"]["cpu"]["alerta"]   + _r_monitor["por_componente"]["cpu"]["critico"]
+    alertasRam   = _r_monitor["por_componente"]["ram"]["alerta"]   + _r_monitor["por_componente"]["ram"]["critico"]
+    alertasDisco = _r_monitor["por_componente"]["disco"]["alerta"] + _r_monitor["por_componente"]["disco"]["critico"]
+    alertasRede  = _r_monitor["por_componente"]["rede"]["alerta"]  + _r_monitor["por_componente"]["rede"]["critico"]
+    totalAlertas = _r_monitor["total"]
 
     print("Alertas totais do monitor: ", totalAlertas)
 
@@ -1713,54 +1701,60 @@ def client(df, cursor):
 
     arquivoExiste = s3.list_objects_v2(Bucket=bucket, Prefix=caminhoJsonMonitor)
 
+    # snapshot desta rodada (picos, módulos e gráficos refletem a captura mais recente)
+    jsonMonitor = {
+        "id": id_monitor,
+        "ativo": monitor_ativo,
+        "horario": horarioFim,
+        "cpu": {
+            "usoCpuPercent": df_client["cpu_percent"].iloc[-1],
+            "cpuPico": cpu,
+        },
+        "ram": {"usoRamPercent": df_client["ram_percent"].iloc[-1], "ramPico": ram},
+        "disco": {
+            "diskUsed": diskUsed,
+            "diskTotal": diskTotal,
+            "usoPercentualDisco": usoDiscoPercentForm,
+        },
+        "rede": {
+            "picoMbs": rede,
+            "upload": upload,
+            "download": download,
+            "trafegoTotal": trafego_total,
+        },
+        "limites": {
+            "limiteCpu": limite_cpu,
+            "limiteRam": limite_ram,
+            "limiteDisco": limite_disk,
+            "limiteRede": limite_rede,
+        },
+        "modulos": {col: ultimo[col] for col in status_cols},
+        "alertasMonitor": {
+            "alertasCpu": alertasCpu,
+            "alertasRam": alertasRam,
+            "alertasDisco": alertasDisco,
+            "alertasRede": alertasRede,
+            "alertasTotais": totalAlertas,
+        },
+        "graficos": {
+            "valoresCpu": valoresCpu,
+            "valorRam": valorRam,
+            "valorRede": valorRede,
+            "horariosGrafico": horariosGrafico
+            },
+    }
+
+    # se já existe, ACUMULA os alertas com os das rodadas anteriores (igual às outras dashes)
     if "Contents" in arquivoExiste:  # Se retornar "Contents" ele já existe
         respostaS3 = s3.get_object(Bucket=bucket, Key=caminhoJsonMonitor)
-        jsonMonitor = json.loads(respostaS3["Body"].read().decode("utf-8"))
+        jsonAntigo = json.loads(respostaS3["Body"].read().decode("utf-8"))
+        antigos = jsonAntigo.get("alertasMonitor", {})
 
-        ultimaAtualizacao = df_client["timestamp"]
-
-    else:
-        jsonMonitor = {
-            "id": id_monitor,
-            "ativo": monitor_ativo,
-            "horario": horarioFim,
-            "cpu": {
-                "usoCpuPercent": df_client["cpu_percent"].iloc[-1],
-                "cpuPico": cpu,
-            },
-            "ram": {"usoRamPercent": df_client["ram_percent"].iloc[-1], "ramPico": ram},
-            "disco": {
-                "diskUsed": diskUsed,
-                "diskTotal": diskTotal,
-                "usoPercentualDisco": usoDiscoPercentForm,
-            },
-            "rede": {
-                "picoMbs": rede,
-                "upload": upload,
-                "download": download,
-                "trafegoTotal": trafego_total,
-            },
-            "limites": {
-                "limiteCpu": limite_cpu,
-                "limiteRam": limite_ram,
-                "limiteDisco": limite_disk,
-                "limiteRede": limite_rede,
-            },
-            "modulos": {col: ultimo[col] for col in status_cols},
-            "alertasMonitor": {
-                "alertasCpu": alertasCpu,
-                "alertasRam": alertasRam,
-                "alertasDisco": alertasDisco,
-                "alertasRede": alertasRede,
-                "alertasTotais": totalAlertas,
-            },
-            "graficos": {
-                "valoresCpu": valoresCpu,
-                "valorRam": valorRam,
-                "valorRede": valorRede,
-                "horariosGrafico": horariosGrafico
-                },
-        }
+        jsonMonitor["alertasMonitor"]["alertasCpu"]    += int(antigos.get("alertasCpu", 0))
+        jsonMonitor["alertasMonitor"]["alertasRam"]    += int(antigos.get("alertasRam", 0))
+        jsonMonitor["alertasMonitor"]["alertasDisco"]  += int(antigos.get("alertasDisco", 0))
+        jsonMonitor["alertasMonitor"]["alertasRede"]   += int(antigos.get("alertasRede", 0))
+        jsonMonitor["alertasMonitor"]["alertasTotais"] += int(antigos.get("alertasTotais", 0))
 
     s3.put_object(
         Bucket=bucket,

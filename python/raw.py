@@ -100,7 +100,7 @@ conexao = mysql.connector.connect(
     user=os.getenv("user"),
     password=os.getenv("password"),
     database=os.getenv("database"),
-    port=os.getenv("port)
+    port=os.getenv("port")
 )
 
 # Cursor para executar Queryes
@@ -574,7 +574,7 @@ try:
 
             print("=" * 60)
 
-            time.sleep(1)
+            time.sleep(10)
             # Aguarda mais 60 segundos antes da próxima coleta (controle de frequência).
 
             contador += 1

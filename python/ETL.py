@@ -1653,6 +1653,17 @@ def client(df, cursor):
         "disco": {"pico": maiorDisco},
     }
 
+    ultimas = df_client.tail(10)
+
+    graficoTrafego = []
+    for _, linha in ultimas.iterrows():
+        graficoTrafego.append({
+            "timestamp": str(linha["timestamp"]),
+            "trafegoMbps": round(float(linha["banda_larga"]), 2)
+        })
+
+    jsonUnidade["graficoTrafegoUnidade"] = graficoTrafego
+
     s3.put_object(
         Bucket=bucket,
         Key=caminhoJsonUnidade,

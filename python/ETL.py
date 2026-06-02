@@ -259,45 +259,6 @@ def heatmap_quedas(cursor, df_hist, id_empresa, dias=30, limite_queda=0.01):
         }
     return resultado
 
-def heatmap_quedas_unidade(df_hist, id_unidade, monitores_da_unidade, dias=30, limite_queda=0.01):
-
-    turnos = ["Madrugada", "Manhã", "Tarde", "Noite"]
-    dias_semana = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
-
-    def turno_de(hora):
-        if hora < 6:
-            return "Madrugada"
-        if hora < 12:
-            return "Manhã"
-        if hora < 18:
-            return "Tarde"
-        return "Noite"
-
-    matriz = {}
-    for t in turnos:
-        matriz[t] = [0, 0, 0, 0, 0, 0, 0]
-
-    corte = datetime.now() - timedelta(days=dias)
-    df_janela = df_hist[df_hist["timestamp"] >= corte]
-
-    for _, row in df_janela.iterrows():
-
-        if row["banda_larga"] > limite_queda:
-            continue
-
-        if int(row["id_monitor"]) not in monitores_da_unidade:
-            continue
-
-        ts = row["timestamp"]
-        t = turno_de(ts.hour)
-        d = (ts.weekday() + 1) % 7
-        matriz[t][d] += 1
-
-    return {
-        "turnos": turnos,
-        "dias": dias_semana,
-        "matriz": matriz
-    }
 
 def barras_alertas_semana(cursor, df_hist, id_empresa):
     """
@@ -1691,27 +1652,6 @@ def client(df, cursor):
         "ram": {"pico": maiorRam},
         "disco": {"pico": maiorDisco},
     }
-
-    
-    cursor.execute(
-        "SELECT id_monitor FROM monitores WHERE fk_unidade = %s",
-        (id_unidade,)
-    )
-    monitores_da_unidade = []
-    for linha in cursor.fetchall():
-        monitores_da_unidade.append(int(linha[0]))
-
-    if df_hist.empty:
-        jsonUnidade["heatmapQuedas"] = {
-            "turnos": ["Madrugada","Manhã", "Tarde", "Noite"],
-            "dias": ["Domingo", "Segunda", "Terça","Quarta","Quinta", "Sexta", "Sábado"],
-            "matriz": {
-                "Madrugada": [0,0,0,0,0,0,0], "Manhã": [0,0,0,0,0,0,0],
-                "Tarde": [0,0,0,0,0,0,0], "Noite": [0,0,0,0,0,0,0]
-            }
-        }
-    else:
-        jsonUnidade["heatmapQuedas"] =heatmap_quedas_unidade(df_hist, id_unidade, monitores_da_unidade)
 
     s3.put_object(
         Bucket=bucket,

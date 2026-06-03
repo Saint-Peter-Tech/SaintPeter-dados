@@ -202,10 +202,7 @@ def buscar_hospitais_5alertas(cursor, df, id_empresa, inicio, fim, minimo=5):
     return resultado, len(resultado)
 
 def heatmap_quedas(cursor, df_hist, id_empresa, dias=30, limite_queda=0.01):
-    """
-    Quedas (banda_larga <= limite_queda) por turno x dia da semana, por unidade,
-    nos últimos `dias`. Chave "0" = todas as unidades (soma da empresa).
-    """
+
     cursor.execute(
         """
         SELECT m.id_monitor, u.id_unidade, u.nome_unidade
@@ -261,10 +258,7 @@ def heatmap_quedas(cursor, df_hist, id_empresa, dias=30, limite_queda=0.01):
 
 
 def barras_alertas_semana(cursor, df_hist, id_empresa):
-    """
-    Alertas (Alerta + Crítico) por semana do mês corrente, por unidade.
-    Chave "0" = todas as unidades. Usa contar_alertas por (unidade x semana).
-    """
+
     cursor.execute(
         """
         SELECT m.id_monitor, u.id_unidade, u.nome_unidade
@@ -386,7 +380,6 @@ def preparar_raw(df):
     return df
 
 def carregar_trusted(dia_inicio, dia_fim):
-    """Lê e concatena os CSVs da camada trusted entre duas datas (inclusive)."""
     frames = []
     dia = dia_inicio
     while dia <= dia_fim:
@@ -482,10 +475,7 @@ def status(valor, limite, componente):
 
 
 def carregar_limites_por_monitor(cursor, id_empresa):
-    """
-    Monta {id_monitor: {"cpu": x, "ram": y, "disco_usado": z, "rede": w}}
-    para todos os monitores de uma empresa. Use uma vez e reaproveite.
-    """
+
     cursor.execute(
         """
         SELECT cm.fk_monitor, c.nome_componente, cm.limite
@@ -503,32 +493,7 @@ def carregar_limites_por_monitor(cursor, id_empresa):
 
 
 def contar_alertas(df, inicio, fim, limites_por_monitor, monitores=None):
-    """
-    Cálculo PADRÃO de alertas, pra todos os integrantes usarem.
 
-    Regra única: 1 ocorrência = 1 (linha × componente) cujo status seja
-    "Alerta" OU "Crítico". Cada captura pode somar até 4 (cpu, ram, disco, rede).
-
-    Cada um passa o SEU escopo e o SEU intervalo:
-      - df:                 o DataFrame que você já usa (a fonte é sua).
-      - inicio, fim:        sua janela de tempo. Conta em [inicio, fim).
-      - limites_por_monitor: dict {id_monitor: {"cpu":..,"ram":..,"disco_usado":..,"rede":..}}.
-      - monitores:          conjunto/lista de id_monitor do seu escopo.
-                            Se None, conta todos os monitores presentes no df.
-
-    Retorna:
-      {
-        "total":    int,                # alertas + criticos
-        "alertas":  int,                # só "Alerta"
-        "criticos": int,                # só "Crítico"
-        "por_componente": {
-            "cpu":   {"alerta": int, "critico": int},
-            "ram":   {"alerta": int, "critico": int},
-            "disco": {"alerta": int, "critico": int},
-            "rede":  {"alerta": int, "critico": int},
-        },
-      }
-    """
     df_janela = df[(df["timestamp"] >= inicio) & (df["timestamp"] < fim)]
 
     mapa = {
@@ -1682,7 +1647,6 @@ def client(df, cursor):
     usoDiscoPercent = diskUsed * 100 / diskTotal
     usoDiscoPercentForm = round(usoDiscoPercent, 2)
 
-    # === padronizado: contar_alertas em TODAS as capturas do df_client (escopo = monitor) ===
     _ini_m = df_client["timestamp"].min()
     _fim_m = df_client["timestamp"].max() + timedelta(seconds=1)
     _r_monitor = contar_alertas(
@@ -1706,7 +1670,6 @@ def client(df, cursor):
 
     arquivoExiste = s3.list_objects_v2(Bucket=bucket, Prefix=caminhoJsonMonitor)
 
-    # snapshot desta rodada (picos, módulos e gráficos refletem a captura mais recente)
     jsonMonitor = {
         "id": id_monitor,
         "ativo": monitor_ativo,
@@ -1749,8 +1712,7 @@ def client(df, cursor):
             },
     }
 
-    # se já existe, ACUMULA os alertas com os das rodadas anteriores (igual às outras dashes)
-    if "Contents" in arquivoExiste:  # Se retornar "Contents" ele já existe
+    if "Contents" in arquivoExiste: 
         respostaS3 = s3.get_object(Bucket=bucket, Key=caminhoJsonMonitor)
         jsonAntigo = json.loads(respostaS3["Body"].read().decode("utf-8"))
         antigos = jsonAntigo.get("alertasMonitor", {})
@@ -1766,7 +1728,7 @@ def client(df, cursor):
         Key=caminhoJsonMonitor,
         Body=json.dumps(
             jsonMonitor, ensure_ascii=False
-        ),  # ensure ascii garante que se houver acentos eles não serão substituídos
+        ), 
         ContentType="application/json",
     )
 
